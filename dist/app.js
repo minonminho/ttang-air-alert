@@ -27,8 +27,12 @@ const cities = [
   { name: "이시가키", code: "ISG", lat: 24.3444441, lon: 124.1851857, major: true, osm: "https://www.openstreetmap.org/search?query=Ishigaki%2C%20Okinawa%2C%20Japan" },
 ];
 
-const cityByCode = new Map(cities.map((city) => [city.code, city]));
 let toastTimer;
+let todayDeals = [];
+let japanMap = null;
+let japanBounds = [];
+let selectedCity = null;
+const markerByCode = new Map();
 
 function showToast(message) {
   const toast = document.querySelector("#toast");
@@ -61,19 +65,41 @@ function renderDeals(deals) {
     </article>`).join("");
 }
 
+function showCityDeals(city) {
+  selectedCity = city;
+  const panel = document.querySelector("#cityDealsPanel");
+  const matches = todayDeals.filter((deal) => deal.arrivalCode === city.code);
+  document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
+  markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
+  panel.innerHTML = `
+    <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
+    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${deal.airline} · ${formatPeriod(deal)}</p></div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
+    <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
+  panel.classList.add("visible");
+  panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
+  const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
+  japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
+}
+
+function resetMapView() {
+  selectedCity = null;
+  document.querySelector("#cityDealsPanel").classList.remove("visible");
+  document.querySelectorAll(".deal-card").forEach((card) => card.classList.remove("highlight"));
+  markerByCode.forEach((marker) => marker.getElement()?.classList.remove("active"));
+  if (japanMap && japanBounds.length) japanMap.fitBounds(japanBounds, { padding: [20, 20], duration: 0.8 });
+}
+
 function setupMap() {
   const element = document.querySelector("#japanMap");
   if (!element || !window.L) return;
-  const map = window.L.map(element, { zoomControl: true, scrollWheelZoom: false, attributionControl: true });
+  japanMap = window.L.map(element, { zoomControl: true, scrollWheelZoom: false, attributionControl: true });
   window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
-  }).addTo(map);
-  const markers = new Map();
-  const bounds = [];
+  }).addTo(japanMap);
 
   cities.forEach((city) => {
-    bounds.push([city.lat, city.lon]);
+    japanBounds.push([city.lat, city.lon]);
     const icon = window.L.divIcon({
       className: "city-marker-shell",
       html: `<span class="city-marker${city.major ? " major" : ""}"><span class="city-marker-dot"></span><span class="city-marker-label">${city.name}</span></span>`,
@@ -81,20 +107,15 @@ function setupMap() {
       iconAnchor: [0, 0],
       popupAnchor: [0, -8],
     });
-    const marker = window.L.marker([city.lat, city.lon], { icon, keyboard: true }).addTo(map);
-    marker.bindPopup(`<strong>${city.name}</strong><br><span>${city.code} · 인천 출발</span><br><a class="osm-link" href="${city.osm}" target="_blank" rel="noopener">OpenStreetMap에서 위치 보기 ↗</a>`);
+    const marker = window.L.marker([city.lat, city.lon], { icon, keyboard: true }).addTo(japanMap);
     marker.on("click", () => {
-      const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
-      map.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
-      document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
-      const matches = document.querySelectorAll(`.deal-card[data-arrival="${city.code}"]`).length;
-      showToast(`${city.name} 특가 ${matches}개`);
+      showCityDeals(city);
     });
-    markers.set(city.code, marker);
+    markerByCode.set(city.code, marker);
   });
 
-  map.fitBounds(bounds, { padding: [20, 20] });
-  window.setTimeout(() => map.invalidateSize(), 200);
+  japanMap.fitBounds(japanBounds, { padding: [20, 20] });
+  window.setTimeout(() => japanMap.invalidateSize(), 200);
 }
 
 async function loadDeals() {
@@ -102,12 +123,16 @@ async function loadDeals() {
     const response = await fetch(`./deals.json?ts=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`deals.json HTTP ${response.status}`);
     const payload = await response.json();
-    renderDeals(Array.isArray(payload.deals) ? payload.deals : []);
+    todayDeals = Array.isArray(payload.deals) ? payload.deals : [];
+    renderDeals(todayDeals);
+    if (selectedCity) showCityDeals(selectedCity);
   } catch (error) {
     console.warn("오늘의 특가를 불러오지 못했습니다.", error);
-    renderDeals([]);
+    todayDeals = [];
+    renderDeals(todayDeals);
   }
 }
 
+document.querySelector("#resetMap").addEventListener("click", resetMapView);
 setupMap();
 loadDeals();

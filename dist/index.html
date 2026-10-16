@@ -29,8 +29,9 @@
           <div class="map-summary"><strong id="mapDealCount">오늘의 특가</strong><span>인천 출발 · 30만원 미만</span></div>
         </div>
         <div class="map-frame">
-          <div class="map-toolbar"><span>JAPAN / CITY LOCATOR</span><span class="map-live"><i></i> LIVE</span></div>
+          <div class="map-toolbar"><span>JAPAN / CITY LOCATOR</span><span class="map-toolbar-actions"><span class="map-live"><i></i> LIVE</span><button id="resetMap" class="map-reset" type="button">↗ 일본 전체 지도</button></span></div>
           <div id="japanMap" class="leaflet-map" aria-label="일본 26개 도시 특가 지도"></div>
+          <aside id="cityDealsPanel" class="city-deals-panel" aria-live="polite" aria-label="선택한 도시의 항공권 정보"></aside>
           <div class="map-footer"><span>마커를 누르면 OSM 도시 위치와 특가를 볼 수 있어요.</span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a></div>
         </div>
       </section>
