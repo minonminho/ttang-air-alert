@@ -93,7 +93,7 @@ function resetMapView() {
 
 function renderCityPicker() {
   const picker = document.querySelector("#cityPicker");
-  picker.innerHTML = cities.map((city) => `<button class="city-choice" type="button" data-code="${city.code}"><span>${city.name}</span><small>${city.code}</small></button>`).join("");
+  picker.innerHTML = cities.map((city) => `<button class="city-choice${city.major ? " major" : ""}" type="button" data-code="${city.code}"><span>${city.name}</span><small>${city.major ? "★ " : ""}${city.code}</small></button>`).join("");
   picker.querySelectorAll(".city-choice").forEach((button) => {
     const city = cities.find((item) => item.code === button.dataset.code);
     button.addEventListener("click", () => showCityDeals(city));
