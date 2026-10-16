@@ -6,6 +6,14 @@
 node .\crawler\ttangair-crawler.mjs
 ```
 
+대시보드에 표시되는 스냅샷을 최신 데이터로 갱신하려면 다음 명령을 실행합니다.
+
+```powershell
+node .\crawler\update-snapshot.mjs
+```
+
+운영 환경에서는 이 갱신 명령을 별도 Node 실행 환경에서 09:00·15:00·21:00(KST)에 실행하고, `dist/deals.json` 대신 D1이나 별도 API 저장소에 기록하는 방식으로 전환하면 됩니다.
+
 현재 수집기는 다음 값을 반환합니다.
 
 - 출발지·도착지 및 공항 코드
