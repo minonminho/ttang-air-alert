@@ -50,7 +50,8 @@ h1 em { color: #88a451; font-style: normal; }
 .leaflet-control-attribution { padding: 2px 6px !important; color: #6e806d !important; background: rgba(241,246,232,.9) !important; font-size: 8px !important; }.leaflet-control-attribution a { color: #50745b !important; }
 .map-footer { padding: 10px 5px 0; color: #758788; font-size: 8px; letter-spacing: 0; }.map-footer a { color: #a5b6a1; text-decoration: underline; text-underline-offset: 2px; }
 
-.city-marker { position: relative; display: block; width: 15px !important; height: 15px !important; cursor: pointer; transform: translate(-50%, -50%); }
+.city-marker-shell { width: 0 !important; height: 0 !important; background: transparent !important; border: 0 !important; }
+.city-marker { position: absolute; top: 0; left: 0; display: block; width: 15px; height: 15px; cursor: pointer; transform: translate(-50%, -50%); }
 .city-marker-dot { display: block; width: 11px; height: 11px; border: 2px solid #fff; border-radius: 50%; background: var(--navy); box-shadow: 0 3px 9px rgba(15, 28, 20, .28); transition: .18s ease; }
 .city-marker-label { position: absolute; top: -8px; left: 18px; padding: 3px 6px; color: #34483a; background: rgba(255,255,252,.9); border: 1px solid rgba(99,130,90,.28); border-radius: 5px; box-shadow: 0 2px 7px rgba(50,77,42,.12); white-space: nowrap; pointer-events: none; font-size: 10px; font-weight: 800; letter-spacing: -.45px; }
 .city-marker.major .city-marker-dot { width: 15px; height: 15px; border-color: #fff4ed; background: var(--coral); box-shadow: 0 0 0 4px rgba(255,133,109,.18), 0 3px 9px rgba(15,28,20,.28); }.city-marker.major .city-marker-label { color: #243b2c; font-size: 11px; font-weight: 900; }

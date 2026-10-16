@@ -75,9 +75,9 @@ function setupMap() {
   cities.forEach((city) => {
     bounds.push([city.lat, city.lon]);
     const icon = window.L.divIcon({
-      className: `city-marker${city.major ? " major" : ""}`,
-      html: `<span class="city-marker-dot"></span><span class="city-marker-label">${city.name}</span>`,
-      iconSize: [15, 15],
+      className: "city-marker-shell",
+      html: `<span class="city-marker${city.major ? " major" : ""}"><span class="city-marker-dot"></span><span class="city-marker-label">${city.name}</span></span>`,
+      iconSize: [0, 0],
       iconAnchor: [0, 0],
       popupAnchor: [0, -8],
     });
