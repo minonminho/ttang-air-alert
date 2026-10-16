@@ -118,6 +118,8 @@ a { color: inherit; text-decoration: none; }
 .discount { display: inline-block; margin-bottom: 5px; padding: 3px 5px; color: #5c9738; background: #e7f6da; border-radius: 4px; font: 600 9px "DM Mono", monospace; }
 .deal-price { display: block; color: var(--navy); font-size: 15px; font-weight: 900; letter-spacing: -.5px; }
 .deal-price small { margin-left: 2px; color: #929b9d; font-size: 9px; font-weight: 500; }
+.deal-book { display: inline-block; margin-top: 5px; color: #6c8b5e; font-size: 9px; font-weight: 800; }
+.deal-book:hover { color: var(--navy); text-decoration: underline; }
 .heart-button { display: grid; width: 30px; height: 30px; place-items: center; color: #b7bfbc; background: transparent; border-radius: 50%; font-size: 20px; }
 .heart-button:hover, .heart-button.saved { color: #ff7e67; background: #fff0ec; }
 .load-more { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 47px; margin-top: 10px; color: #77817f; background: transparent; border: 1px dashed #d4ddd6; border-radius: 11px; font-size: 11px; font-weight: 700; }

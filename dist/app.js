@@ -4,6 +4,7 @@ const initialDeals = [
   { id: "bkk", type: "international", logo: "B", logoClass: "blue", airline: "에어부산", route: "부산 → 방콕", code: "PUS  ·  BKK", depart: "11/15 (토)", time: "19:30", arrive: "23:40", duration: "5시간 10분", discount: "−28%", price: 219000, seats: "잔여 2석" },
   { id: "jeju", type: "domestic", logo: "J", logoClass: "green", airline: "제주항공", route: "서울 → 제주", code: "GMP  ·  CJU", depart: "11/09 (일)", time: "06:50", arrive: "07:55", duration: "1시간 05분", discount: "−36%", price: 79000, seats: "잔여 8석" },
 ];
+let liveDeals = initialDeals;
 
 const dealList = document.querySelector("#dealList");
 const toast = document.querySelector("#toast");
@@ -17,13 +18,13 @@ function formatPrice(price) {
 }
 
 function renderDeals() {
-  const filtered = initialDeals.filter((deal) => currentFilter === "all" || deal.type === currentFilter);
+  const filtered = liveDeals.filter((deal) => currentFilter === "all" || deal.type === currentFilter);
   const items = showingMore ? [...filtered, ...filtered.map((deal, index) => ({ ...deal, id: `${deal.id}-copy`, route: index % 2 ? "서울 → 하노이" : "부산 → 후쿠오카", code: index % 2 ? "ICN  ·  HAN" : "PUS  ·  FUK", price: deal.price + 22000, discount: "−24%" }))] : filtered;
   dealList.innerHTML = items.map((deal) => `
     <article class="deal-card" data-deal-id="${deal.id}">
       <div class="deal-airline"><span class="airline-logo ${deal.logoClass}">${deal.logo}</span><div class="deal-route"><strong>${deal.route}</strong><small>${deal.airline} · ${deal.code}</small></div></div>
       <div class="deal-times"><b>${deal.time}</b><span>→</span>${deal.arrive}<small> · ${deal.duration}</small></div>
-      <div class="deal-meta"><span class="discount">${deal.discount}</span><strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong></div>
+      <div class="deal-meta"><span class="discount">${deal.discount}</span><strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong>${deal.reservationUrl ? `<a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a>` : ""}</div>
       <button class="heart-button" aria-label="${deal.route} 찜하기" data-heart="${deal.id}">♡</button>
     </article>`).join("");
   document.querySelector("#loadMore").innerHTML = showingMore ? `특가 접기 <span>↥</span>` : `더 많은 특가 보기 <span>↗</span>`;
@@ -59,7 +60,7 @@ function showToast(message) {
 async function searchDeals({ origin, destination, dates, passengers }) {
   await new Promise((resolve) => setTimeout(resolve, 650));
   const destinationMap = { NRT: "fuk", TPE: "tpe", BKK: "bkk", DAD: "bkk" };
-  return initialDeals.filter((deal) => destination === "ANY" || deal.code.includes(destination) || deal.id === destinationMap[destination]);
+  return liveDeals.filter((deal) => destination === "ANY" || deal.code.includes(destination) || deal.arrivalCode === destination || deal.id === destinationMap[destination]);
 }
 
 document.querySelectorAll(".filter-button").forEach((button) => button.addEventListener("click", () => {
@@ -72,7 +73,7 @@ document.querySelectorAll(".filter-button").forEach((button) => button.addEventL
 
 document.querySelector("#loadMore").addEventListener("click", () => { showingMore = !showingMore; renderDeals(); });
 document.querySelector("#sortDeals").addEventListener("click", () => {
-  initialDeals.sort((a, b) => a.price - b.price);
+  liveDeals.sort((a, b) => a.price - b.price);
   renderDeals();
   showToast("최저가순으로 정렬했어요.");
 });
@@ -126,9 +127,38 @@ document.querySelector("#testAlert").addEventListener("click", async () => {
 document.querySelector("#manageRoutes").addEventListener("click", () => showToast("찜한 노선 관리 화면을 준비 중이에요."));
 document.querySelector(".mobile-menu").addEventListener("click", () => document.querySelector(".sidebar").classList.toggle("mobile-open"));
 
+async function loadLiveDeals() {
+  try {
+    const response = await fetch(`./deals.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`deals.json HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!Array.isArray(payload.deals) || !payload.deals.length) return;
+    liveDeals = payload.deals.map((deal) => ({
+      ...deal,
+      id: deal.masterId,
+      type: "international",
+      logo: deal.airlineCode,
+      logoClass: deal.airlineCode === "TW" ? "peach" : deal.airlineCode === "RS" ? "blue" : deal.airlineCode === "7C" ? "green" : "",
+      route: `인천 → ${deal.arrival}`,
+      code: `ICN  ·  ${deal.arrivalCode}`,
+      depart: `${deal.fromDate} — ${deal.toDate}`,
+      time: deal.nonstop ? "직항" : "경유",
+      arrive: deal.tripType,
+      duration: `${deal.minimumPassengers}명부터`,
+      discount: "땡처리",
+    }));
+    renderDeals();
+    const updateLabel = document.querySelector(".eyebrow .mono");
+    if (updateLabel && payload.fetchedAt) updateLabel.textContent = `· ${new Date(payload.fetchedAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 수집`;
+  } catch (error) {
+    console.warn("실시간 특가 스냅샷을 불러오지 못해 기본 목록을 표시합니다.", error);
+  }
+}
+
 const savedSettings = (() => { try { return JSON.parse(localStorage.getItem("ttang-alert-settings") || "null"); } catch { return null; } })();
 if (savedSettings) {
   document.querySelector("#alertToggle").checked = savedSettings.enabled;
   document.querySelectorAll(".time-chip:not(.add-time)").forEach((chip) => chip.classList.toggle("selected", savedSettings.times.includes(chip.dataset.time)));
 }
 renderDeals();
+loadLiveDeals();
