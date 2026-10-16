@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10151d" />
+    <meta name="description" content="놓치면 끝인 땡처리 항공권을 하루 세 번 알려드려요." />
+    <title>땡항공 — 오늘의 땡처리 항공권</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="주요 메뉴">
+        <a class="brand" href="#top" aria-label="땡항공 홈">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none"><path d="M5.5 19.5 26.8 7.8c1.1-.6 2.4.5 1.9 1.7l-3.1 7.2a2 2 0 0 1-1.2 1.1L8.2 23.5c-1.4.5-2.1-1.1-1-2l4.5-3.4-5.4.1c-1.3 0-1.8-1.7-.8-2.4l2.2-1.5 6.3.9 5.4-4-8-1.4c-1.1-.2-1.4-1.7-.4-2.2l2.1-1.1 10.5 3 3-2.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span>땡항공</span>
+        </a>
+
+        <nav class="nav-list">
+          <a class="nav-item active" href="#dashboard"><span class="nav-icon">⌂</span> 대시보드</a>
+          <a class="nav-item" href="#deals"><span class="nav-icon">✦</span> 땡처리 탐색</a>
+          <a class="nav-item" href="#alerts"><span class="nav-icon">◔</span> 알림 센터 <span class="nav-count">3</span></a>
+          <a class="nav-item" href="#saved"><span class="nav-icon">♡</span> 찜한 노선</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="tip-card">
+            <span class="tip-spark">✳</span>
+            <strong>땡처리 알림은<br />빠를수록 좋아요</strong>
+            <p>좌석이 사라지기 전에<br />가장 먼저 확인하세요.</p>
+          </div>
+          <a class="nav-item muted" href="#settings"><span class="nav-icon">⚙</span> 설정</a>
+          <div class="profile-row">
+            <div class="avatar">민</div>
+            <div><strong>민온 님</strong><small>알림 활성화</small></div>
+            <span class="more">···</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="top">
+        <header class="topbar">
+          <div class="breadcrumb"><span>땡항공</span><span>/</span><strong>대시보드</strong></div>
+          <div class="top-actions">
+            <button class="icon-button" aria-label="도움말">?</button>
+            <button class="icon-button notification-button" aria-label="새 알림"><span>♧</span><i></i></button>
+            <button class="mobile-menu" aria-label="메뉴 열기">☰</button>
+          </div>
+        </header>
+
+        <section class="hero-section" id="dashboard">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="live-dot"></span> LIVE DEAL RADAR <span class="mono">· 2분 전 업데이트</span></div>
+            <h1>이번 주말,<br /><em>어디든</em> 떠날 가격</h1>
+            <p>항공권이 가장 싸지는 순간을 찾아<br class="desktop-only" /> 하루 세 번, 휴대폰으로 알려드려요.</p>
+          </div>
+          <div class="hero-orbit" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+            <div class="orbit-dot dot-one"></div><div class="orbit-dot dot-two"></div>
+            <div class="hero-plane">✈</div>
+          </div>
+        </section>
+
+        <section class="search-card" aria-label="항공권 검색">
+          <div class="search-field route-field">
+            <label>출발지</label>
+            <div class="field-control"><span class="field-icon">↗</span><select id="origin"><option value="ICN">서울 · ICN</option><option value="PUS">부산 · PUS</option><option value="CJU">제주 · CJU</option><option value="TAE">대구 · TAE</option></select></div>
+          </div>
+          <button class="swap-button" id="swapRoute" aria-label="출발지와 도착지 바꾸기">⇄</button>
+          <div class="search-field route-field">
+            <label>도착지</label>
+            <div class="field-control"><span class="field-icon">⌖</span><select id="destination"><option value="ANY">어디든 · 특가 우선</option><option value="NRT">도쿄 · NRT</option><option value="TPE">타이베이 · TPE</option><option value="BKK">방콕 · BKK</option><option value="DAD">다낭 · DAD</option></select></div>
+          </div>
+          <div class="search-divider"></div>
+          <div class="search-field date-field">
+            <label>여행 기간</label>
+            <div class="field-control"><span class="field-icon">▣</span><input id="travelDates" type="text" value="11/07 — 11/10" aria-label="여행 기간" /></div>
+          </div>
+          <div class="search-divider"></div>
+          <div class="search-field passenger-field">
+            <label>여행자</label>
+            <div class="field-control"><span class="field-icon">♙</span><select id="passengers"><option>성인 1명</option><option>성인 2명</option><option>성인 3명</option><option>성인 4명</option></select></div>
+          </div>
+          <button class="primary-button search-button" id="searchButton"><span class="search-glyph">⌕</span><span>특가 찾기</span></button>
+        </section>
+
+        <div class="content-grid">
+          <div class="content-main">
+            <div class="section-heading" id="deals">
+              <div><span class="section-kicker">CURATED FOR YOU</span><h2>오늘의 땡처리</h2></div>
+              <div class="heading-actions"><button class="filter-button active" data-filter="all">전체</button><button class="filter-button" data-filter="international">해외</button><button class="filter-button" data-filter="domestic">국내</button><button class="sort-button" id="sortDeals">최저가순 ↕</button></div>
+            </div>
+
+            <div class="deal-list" id="dealList"></div>
+            <button class="load-more" id="loadMore">더 많은 특가 보기 <span>↗</span></button>
+
+            <div class="insight-row" id="saved">
+              <div class="insight-card price-insight">
+                <div class="insight-top"><span class="section-kicker">PRICE PULSE</span><span class="pulse-label"><i></i> 실시간</span></div>
+                <h3>최근 24시간 동안<br /><strong>가장 많이 떨어진 노선</strong></h3>
+                <div class="pulse-route"><div><b>ICN</b><small>서울</small></div><span>→</span><div><b>TPE</b><small>타이베이</small></div><strong class="pulse-price">₩118,900</strong></div>
+                <div class="sparkline" aria-label="가격 하락 그래프"><span style="height: 34%"></span><span style="height: 54%"></span><span style="height: 42%"></span><span style="height: 66%"></span><span style="height: 48%"></span><span style="height: 72%"></span><span style="height: 58%"></span><span style="height: 82%"></span><span style="height: 68%"></span><span style="height: 100%"></span></div>
+                <div class="insight-foot"><span>어제보다 <strong>−31%</strong></span><span>방금 확인 · 2분 전</span></div>
+              </div>
+              <div class="insight-card saved-insight">
+                <div class="insight-top"><span class="section-kicker">MY ROUTES</span><button class="tiny-arrow">↗</button></div>
+                <h3>찜한 노선<br /><strong>3개를 지켜보고 있어요</strong></h3>
+                <div class="route-stack"><div><span class="route-dot mint"></span><span>서울 <b>→</b> 오사카</span><strong>₩139,000</strong></div><div><span class="route-dot coral"></span><span>부산 <b>→</b> 후쿠오카</span><strong>₩89,000</strong></div><div><span class="route-dot violet"></span><span>서울 <b>→</b> 하노이</span><strong>₩154,000</strong></div></div>
+                <button class="text-link" id="manageRoutes">노선 관리하기 <span>→</span></button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="right-rail">
+            <section class="alert-card" id="alerts">
+              <div class="alert-header"><div><span class="section-kicker">ALERT CENTER</span><h2>알림 스케줄</h2></div><label class="toggle-wrap"><input id="alertToggle" type="checkbox" checked /><span class="toggle-slider"></span></label></div>
+              <p class="alert-description">가격이 내려가면 놓치지 않도록<br />매일 세 번 알려드릴게요.</p>
+              <div class="alert-status"><span class="status-icon">♧</span><span><strong id="alertStatusText">휴대폰 알림 켜짐</strong><small>마지막 발송 · 오늘 09:00</small></span></div>
+              <div class="time-label"><span>알림 시간</span><span class="mono">KST</span></div>
+              <div class="time-grid"><button class="time-chip selected" data-time="09:00">09:00</button><button class="time-chip selected" data-time="15:00">15:00</button><button class="time-chip selected" data-time="21:00">21:00</button><button class="time-chip add-time" data-time="추가">＋</button></div>
+              <div class="alert-channel"><div class="channel-icon">⌁</div><div><strong>스마트 알림</strong><small>이 기기의 푸시 알림으로 받기</small></div><span class="channel-check">✓</span></div>
+              <button class="save-alert-button" id="saveAlert">알림 설정 저장 <span>→</span></button>
+              <button class="test-alert-button" id="testAlert">테스트 알림 보내기</button>
+              <p class="alert-note">※ 실제 항공권 가격은 판매처 사정에 따라<br />변동될 수 있어요.</p>
+            </section>
+
+            <section class="mini-stats">
+              <div class="mini-stat"><span class="stat-icon mint-bg">✦</span><div><strong>46</strong><small>최근 24시간 특가</small></div></div>
+              <div class="mini-stat"><span class="stat-icon coral-bg">↘</span><div><strong>₩79,000</strong><small>오늘의 최저가</small></div></div>
+              <div class="mini-stat"><span class="stat-icon violet-bg">◷</span><div><strong>18:00</strong><small>다음 알림 예정</small></div></div>
+            </section>
+
+            <section class="help-card" id="settings"><div class="help-icon">?</div><div><strong>땡항공이 처음인가요?</strong><p>땡처리 항공권을<br />찾는 방법을 알려드려요.</p><button>가이드 읽기 <span>→</span></button></div></section>
+          </aside>
+        </div>
+
+        <footer class="footer"><span>© 2026 TTANG AIR</span><span>가격 정보는 참고용이며 예약 시점에 달라질 수 있습니다.</span><span><a href="#settings">이용 안내</a> · <a href="#settings">개인정보</a></span></footer>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-icon">✓</span><span id="toastMessage">저장했어요.</span></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
