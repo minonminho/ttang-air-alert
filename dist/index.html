@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -62,6 +63,7 @@
           </div>
           <div class="map-stage">
             <div class="map-stage-top"><span>JAPAN / ICN DEPARTURES</span><span class="map-updated">● LIVE MAP</span></div>
+            <div id="japanMap" class="leaflet-map" role="img" aria-label="일본 주요 26개 지역 특가 지도"></div>
             <svg class="japan-map" viewBox="0 0 820 620" role="img" aria-label="일본 주요 26개 지역 특가 지도">
               <defs>
                 <linearGradient id="landGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5f8e9"/><stop offset="1" stop-color="#dff2bb"/></linearGradient>
@@ -186,6 +188,7 @@
       </main>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-icon">✓</span><span id="toastMessage">저장했어요.</span></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

@@ -140,6 +140,57 @@ document.querySelectorAll(".map-city").forEach((city) => {
   city.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectCity(); } });
 });
 
+const japanMapCities = [
+  ["도쿄", "NRT", 35.6762, 139.6503, true], ["오사카", "KIX", 34.6937, 135.5023, true], ["나고야", "NGO", 35.1815, 136.9066, true], ["후쿠오카", "FUK", 33.5904, 130.4017, true],
+  ["삿포로", "CTS", 43.0618, 141.3545, true], ["하코다테", "HKD", 41.7687, 140.7291, false], ["오비히로", "OBO", 42.9236, 143.1961, false], ["아오모리", "AOJ", 40.8222, 140.7474, false],
+  ["센다이", "SDJ", 38.2682, 140.8694, false], ["니가타", "KIJ", 37.9161, 139.0364, false], ["이바라키", "IBR", 36.3659, 140.4714, false], ["시즈오카", "FSZ", 34.9756, 138.3828, false],
+  ["고마쓰", "KMQ", 36.4087, 136.4450, false], ["오카야마", "OKJ", 34.6551, 133.9195, false], ["요나고", "YGJ", 35.4281, 133.3306, false], ["히로시마", "HIJ", 34.3853, 132.4553, false],
+  ["다카마쓰", "TAK", 34.3428, 134.0466, false], ["마쓰야마", "MYJ", 33.8392, 132.7657, false], ["사가", "HSG", 33.2494, 130.2988, true], ["나가사키", "NGS", 32.7503, 129.8777, false],
+  ["오이타", "OIT", 33.2382, 131.6126, false], ["구마모토", "KMJ", 32.8031, 130.7079, false], ["미야자키", "KMI", 31.9077, 131.4202, false], ["가고시마", "KOJ", 31.5966, 130.5571, true],
+  ["오키나와(나하)", "OKA", 26.2124, 127.6809, true], ["이시가키", "ISG", 24.4064, 124.1756, true],
+];
+
+function chooseMapDestination(code, label) {
+  const destination = document.querySelector("#destination");
+  const option = [...destination.options].find((item) => item.value === code);
+  if (!option) return;
+  destination.value = code;
+  document.querySelectorAll(".map-city").forEach((item) => item.classList.toggle("selected", item.dataset.city === code));
+  showToast(`${label} 특가를 선택했어요.`);
+}
+
+function initLeafletJapanMap() {
+  const mapElement = document.querySelector("#japanMap");
+  if (!mapElement) return;
+  if (!window.L) {
+    mapElement.closest(".map-stage")?.classList.add("map-fallback");
+    return;
+  }
+  const japanMap = window.L.map(mapElement, { zoomControl: true, scrollWheelZoom: false, attributionControl: true });
+  window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
+  }).addTo(japanMap);
+  const bounds = [];
+  japanMapCities.forEach(([label, code, lat, lng, major]) => {
+    bounds.push([lat, lng]);
+    const icon = window.L.divIcon({
+      className: `city-pin-wrap${major ? " major" : ""}`,
+      html: `<span class="city-pin"></span><span class="city-pin-label">${label}</span>`,
+      iconSize: [12, 12],
+      iconAnchor: [0, 0],
+      popupAnchor: [0, -6],
+    });
+    const marker = window.L.marker([lat, lng], { icon, keyboard: true }).addTo(japanMap);
+    marker.bindPopup(`<strong>${label}</strong><br><span>${code} · 인천 출발 특가</span><br><small>검색 버튼으로 항공권을 확인하세요.</small>`);
+    marker.on("click", () => chooseMapDestination(code, label));
+  });
+  japanMap.fitBounds(bounds, { padding: [18, 18] });
+  window.setTimeout(() => japanMap.invalidateSize(), 200);
+}
+
+initLeafletJapanMap();
+
 async function loadLiveDeals() {
   try {
     const response = await fetch(`./deals.json?ts=${Date.now()}`, { cache: "no-store" });
