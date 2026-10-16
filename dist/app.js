@@ -70,6 +70,7 @@ function showCityDeals(city) {
   const panel = document.querySelector("#cityDealsPanel");
   const matches = todayDeals.filter((deal) => deal.arrivalCode === city.code);
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
+  document.querySelectorAll(".city-choice").forEach((button) => button.classList.toggle("active", button.dataset.code === city.code));
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
   panel.innerHTML = `
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
@@ -85,8 +86,18 @@ function resetMapView() {
   selectedCity = null;
   document.querySelector("#cityDealsPanel").classList.remove("visible");
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.remove("highlight"));
+  document.querySelectorAll(".city-choice").forEach((button) => button.classList.remove("active"));
   markerByCode.forEach((marker) => marker.getElement()?.classList.remove("active"));
   if (japanMap && japanBounds.length) japanMap.fitBounds(japanBounds, { padding: [20, 20], duration: 0.8 });
+}
+
+function renderCityPicker() {
+  const picker = document.querySelector("#cityPicker");
+  picker.innerHTML = cities.map((city) => `<button class="city-choice" type="button" data-code="${city.code}"><span>${city.name}</span><small>${city.code}</small></button>`).join("");
+  picker.querySelectorAll(".city-choice").forEach((button) => {
+    const city = cities.find((item) => item.code === button.dataset.code);
+    button.addEventListener("click", () => showCityDeals(city));
+  });
 }
 
 function setupMap() {
@@ -134,5 +145,6 @@ async function loadDeals() {
 }
 
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
+renderCityPicker();
 setupMap();
 loadDeals();
