@@ -126,6 +126,19 @@ document.querySelector("#testAlert").addEventListener("click", async () => {
 });
 document.querySelector("#manageRoutes").addEventListener("click", () => showToast("찜한 노선 관리 화면을 준비 중이에요."));
 document.querySelector(".mobile-menu").addEventListener("click", () => document.querySelector(".sidebar").classList.toggle("mobile-open"));
+document.querySelectorAll(".map-city").forEach((city) => {
+  const selectCity = () => {
+    const destination = document.querySelector("#destination");
+    const option = [...destination.options].find((item) => item.value === city.dataset.city);
+    if (!option) return;
+    destination.value = option.value;
+    document.querySelectorAll(".map-city").forEach((item) => item.classList.remove("selected"));
+    city.classList.add("selected");
+    showToast(`${city.dataset.label} 특가를 선택했어요.`);
+  };
+  city.addEventListener("click", selectCity);
+  city.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectCity(); } });
+});
 
 async function loadLiveDeals() {
   try {
