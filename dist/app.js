@@ -119,6 +119,10 @@ function setupMap() {
       popupAnchor: [0, -8],
     });
     const marker = window.L.marker([city.lat, city.lon], { icon, keyboard: true }).addTo(japanMap);
+    marker.getElement()?.querySelector(".city-marker-label")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      showCityDeals(city);
+    });
     marker.on("click", () => {
       showCityDeals(city);
     });
