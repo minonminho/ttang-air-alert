@@ -84,6 +84,8 @@ function setupMap() {
     const marker = window.L.marker([city.lat, city.lon], { icon, keyboard: true }).addTo(map);
     marker.bindPopup(`<strong>${city.name}</strong><br><span>${city.code} · 인천 출발</span><br><a class="osm-link" href="${city.osm}" target="_blank" rel="noopener">OpenStreetMap에서 위치 보기 ↗</a>`);
     marker.on("click", () => {
+      const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
+      map.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
       document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
       const matches = document.querySelectorAll(`.deal-card[data-arrival="${city.code}"]`).length;
       showToast(`${city.name} 특가 ${matches}개`);
