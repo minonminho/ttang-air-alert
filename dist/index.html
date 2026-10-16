@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#10151d" />
-    <meta name="description" content="민호의 일본땡처리 — 인천 출발 일본 특가 항공권을 하루 세 번 알려드려요." />
+    <meta name="theme-color" content="#11171f" />
+    <meta name="description" content="민호의 일본땡처리 — 인천 출발 일본 특가 항공권 지도와 오늘의 땡처리." />
     <title>민호의 일본땡처리</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,181 +13,36 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="주요 메뉴">
-        <a class="brand" href="#top" aria-label="민호의 일본땡처리 홈">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none"><path d="M5.5 19.5 26.8 7.8c1.1-.6 2.4.5 1.9 1.7l-3.1 7.2a2 2 0 0 1-1.2 1.1L8.2 23.5c-1.4.5-2.1-1.1-1-2l4.5-3.4-5.4.1c-1.3 0-1.8-1.7-.8-2.4l2.2-1.5 6.3.9 5.4-4-8-1.4c-1.1-.2-1.4-1.7-.4-2.2l2.1-1.1 10.5 3 3-2.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span class="brand-copy"><small>민호의</small><b>일본땡처리</b></span>
-        </a>
+    <header class="site-header">
+      <a class="brand" href="#map"><span class="brand-mark">✈</span><span><small>민호의</small><strong>일본땡처리</strong></span></a>
+      <div class="header-status"><i></i> 오늘의 특가 수집 완료 <span>·</span> 인천 출발</div>
+    </header>
 
-        <nav class="nav-list">
-          <a class="nav-item active" href="#dashboard"><span class="nav-icon">⌂</span> 대시보드</a>
-          <a class="nav-item" href="#deals"><span class="nav-icon">✦</span> 땡처리 탐색</a>
-          <a class="nav-item" href="#alerts"><span class="nav-icon">◔</span> 알림 센터 <span class="nav-count">3</span></a>
-          <a class="nav-item" href="#saved"><span class="nav-icon">♡</span> 찜한 노선</a>
-        </nav>
-
-        <div class="sidebar-bottom">
-          <div class="tip-card">
-            <span class="tip-spark">✳</span>
-            <strong>땡처리 알림은<br />빠를수록 좋아요</strong>
-            <p>좌석이 사라지기 전에<br />가장 먼저 확인하세요.</p>
+    <main>
+      <section class="map-section" id="map">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow"><span></span> JAPAN DEAL MAP</p>
+            <h1>어디로 갈지,<br /><em>지도에서</em> 골라요</h1>
+            <p class="intro-copy">일본 26개 도시의 위치를 정확하게 표시했어요.<br />마커를 누르면 도시 정보와 오늘의 특가를 확인할 수 있어요.</p>
           </div>
-          <a class="nav-item muted" href="#settings"><span class="nav-icon">⚙</span> 설정</a>
-          <div class="profile-row">
-            <div class="avatar">민</div>
-            <div><strong>민온 님</strong><small>알림 활성화</small></div>
-            <span class="more">···</span>
-          </div>
+          <div class="map-summary"><strong id="mapDealCount">오늘의 특가</strong><span>인천 출발 · 30만원 미만</span></div>
         </div>
-      </aside>
-
-      <main class="main-content" id="top">
-        <header class="topbar">
-          <div class="breadcrumb"><span>민호의 일본땡처리</span><span>/</span><strong>일본 특가 지도</strong></div>
-          <div class="top-actions">
-            <button class="icon-button" aria-label="도움말">?</button>
-            <button class="icon-button notification-button" aria-label="새 알림"><span>♧</span><i></i></button>
-            <button class="mobile-menu" aria-label="메뉴 열기">☰</button>
-          </div>
-        </header>
-
-        <section class="hero-section map-hero" id="dashboard">
-          <div class="hero-copy">
-            <div class="eyebrow"><span class="live-dot"></span> JAPAN DEAL RADAR <span class="mono">· 매일 3회 업데이트</span></div>
-            <h1>일본 어디든,<br /><em>땡처리</em>로 떠나요</h1>
-            <p>인천에서 출발하는 일본 특가를<br class="desktop-only" /> 지도에서 먼저 골라보세요.</p>
-            <div class="map-hero-meta"><span class="map-legend-dot"></span><strong>26개 지역</strong><span>·</span><strong>30만원 미만</strong><span>·</span><span>실시간 스냅샷</span></div>
-          </div>
-          <div class="map-stage">
-            <div class="map-stage-top"><span>JAPAN / ICN DEPARTURES</span><span class="map-updated">● LIVE MAP</span></div>
-            <div id="japanMap" class="leaflet-map" role="img" aria-label="일본 주요 26개 지역 특가 지도"></div>
-            <svg class="japan-map" viewBox="0 0 820 620" role="img" aria-label="일본 주요 26개 지역 특가 지도">
-              <defs>
-                <linearGradient id="landGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5f8e9"/><stop offset="1" stop-color="#dff2bb"/></linearGradient>
-                <filter id="mapShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#92a765" flood-opacity=".16"/></filter>
-              </defs>
-              <g class="map-grid" aria-hidden="true"><path d="M66 100H775M43 210H792M36 320H800M34 430H805M50 540H780"/><path d="M130 32v540M270 20v580M410 22v580M550 20v580M690 35v555"/></g>
-              <g class="islands" filter="url(#mapShadow)" aria-hidden="true">
-                <path class="land hokkaido" d="M565 73 596 44 650 35 706 51 753 87 747 126 713 151 679 166 646 155 617 172 583 151 565 119Z"/>
-                <path class="land honshu" d="M565 174 606 190 629 217 615 241 596 253 611 278 603 302 580 315 578 348 558 367 535 361 518 385 489 391 466 410 438 404 416 424 387 421 365 438 334 430 309 411 285 404 278 379 301 359 314 330 342 313 354 286 380 280 391 253 420 245 440 220 474 218 495 193 529 189Z"/>
-                <path class="land shikoku" d="M337 436 371 427 410 436 438 455 424 474 385 480 349 469 329 454Z"/>
-                <path class="land kyushu" d="M250 438 278 454 295 481 283 508 293 535 272 565 241 585 209 572 203 542 180 529 185 500 204 482 207 453 229 440Z"/>
-                <path class="land okinawa" d="M520 526 533 518 542 529 530 540Z M593 557 609 548 618 562 603 571Z M675 586 695 578 705 591 690 602Z M742 604 764 597 776 610 757 619Z"/>
-              </g>
-              <g class="map-route" aria-hidden="true"><path d="M514 376 C 470 415, 393 445, 266 498 C 240 510, 211 532, 183 567"/><path d="M514 376 C 544 312, 577 245, 630 140"/></g>
-              <g class="map-cities">
-                <g class="map-city" data-city="CTS" data-label="삿포로" tabindex="0" role="button"><circle cx="685" cy="88" r="5"/><text x="696" y="91">삿포로</text></g>
-                <g class="map-city" data-city="HKD" data-label="하코다테" tabindex="0" role="button"><circle cx="595" cy="151" r="5"/><text x="544" y="151">하코다테</text></g>
-                <g class="map-city" data-city="OBO" data-label="오비히로" tabindex="0" role="button"><circle cx="719" cy="115" r="5"/><text x="728" y="119">오비히로</text></g>
-                <g class="map-city" data-city="AOJ" data-label="아오모리" tabindex="0" role="button"><circle cx="574" cy="191" r="5"/><text x="584" y="194">아오모리</text></g>
-                <g class="map-city" data-city="SDJ" data-label="센다이" tabindex="0" role="button"><circle cx="552" cy="277" r="5"/><text x="563" y="280">센다이</text></g>
-                <g class="map-city" data-city="KIJ" data-label="니가타" tabindex="0" role="button"><circle cx="468" cy="253" r="5"/><text x="422" y="257">니가타</text></g>
-                <g class="map-city" data-city="IBR" data-label="이바라키" tabindex="0" role="button"><circle cx="555" cy="333" r="5"/><text x="563" y="337">이바라키</text></g>
-                <g class="map-city major" data-city="NRT" data-label="도쿄" tabindex="0" role="button"><circle cx="528" cy="383" r="7"/><text x="540" y="387">도쿄</text></g>
-                <g class="map-city" data-city="FSZ" data-label="시즈오카" tabindex="0" role="button"><circle cx="483" cy="394" r="5"/><text x="432" y="398">시즈오카</text></g>
-                <g class="map-city major" data-city="NGO" data-label="나고야" tabindex="0" role="button"><circle cx="431" cy="373" r="7"/><text x="439" y="377">나고야</text></g>
-                <g class="map-city" data-city="KMQ" data-label="고마쓰" tabindex="0" role="button"><circle cx="391" cy="304" r="5"/><text x="347" y="308">고마쓰</text></g>
-                <g class="map-city major" data-city="KIX" data-label="오사카" tabindex="0" role="button"><circle cx="376" cy="392" r="7"/><text x="330" y="396">오사카</text></g>
-                <g class="map-city" data-city="YGJ" data-label="요나고" tabindex="0" role="button"><circle cx="310" cy="376" r="5"/><text x="263" y="380">요나고</text></g>
-                <g class="map-city" data-city="OKJ" data-label="오카야마" tabindex="0" role="button"><circle cx="342" cy="423" r="5"/><text x="350" y="427">오카야마</text></g>
-                <g class="map-city" data-city="HIJ" data-label="히로시마" tabindex="0" role="button"><circle cx="296" cy="441" r="5"/><text x="245" y="445">히로시마</text></g>
-                <g class="map-city" data-city="TAK" data-label="다카마쓰" tabindex="0" role="button"><circle cx="388" cy="452" r="5"/><text x="397" y="456">다카마쓰</text></g>
-                <g class="map-city" data-city="MYJ" data-label="마쓰야마" tabindex="0" role="button"><circle cx="325" cy="468" r="5"/><text x="274" y="472">마쓰야마</text></g>
-                <g class="map-city major" data-city="FUK" data-label="후쿠오카" tabindex="0" role="button"><circle cx="240" cy="478" r="7"/><text x="249" y="482">후쿠오카</text></g>
-                <g class="map-city major" data-city="HSG" data-label="사가" tabindex="0" role="button"><circle cx="226" cy="496" r="7"/><text x="181" y="500">사가</text></g>
-                <g class="map-city" data-city="NGS" data-label="나가사키" tabindex="0" role="button"><circle cx="194" cy="493" r="5"/><text x="145" y="497">나가사키</text></g>
-                <g class="map-city" data-city="OIT" data-label="오이타" tabindex="0" role="button"><circle cx="276" cy="500" r="5"/><text x="285" y="504">오이타</text></g>
-                <g class="map-city" data-city="KMJ" data-label="구마모토" tabindex="0" role="button"><circle cx="228" cy="531" r="5"/><text x="179" y="535">구마모토</text></g>
-                <g class="map-city" data-city="KMI" data-label="미야자키" tabindex="0" role="button"><circle cx="276" cy="557" r="5"/><text x="285" y="561">미야자키</text></g>
-                <g class="map-city major" data-city="KOJ" data-label="가고시마" tabindex="0" role="button"><circle cx="216" cy="570" r="7"/><text x="157" y="574">가고시마</text></g>
-                <g class="map-city major" data-city="OKA" data-label="오키나와(나하)" tabindex="0" role="button"><circle cx="535" cy="529" r="7"/><text x="548" y="533">오키나와(나하)</text></g>
-                <g class="map-city major" data-city="ISG" data-label="이시가키" tabindex="0" role="button"><circle cx="750" cy="607" r="7"/><text x="761" y="611">이시가키</text></g>
-              </g>
-            </svg>
-            <div class="map-stage-footer"><span><i class="map-pin-key"></i> 마커를 누르면 목적지가 선택돼요</span><span>인천 출발 기준</span></div>
-          </div>
-        </section>
-
-        <section class="search-card" aria-label="항공권 검색">
-          <div class="search-field route-field">
-            <label>출발지</label>
-            <div class="field-control"><span class="field-icon">↗</span><select id="origin"><option value="ICN">서울 · ICN</option><option value="PUS">부산 · PUS</option><option value="CJU">제주 · CJU</option><option value="TAE">대구 · TAE</option></select></div>
-          </div>
-          <button class="swap-button" id="swapRoute" aria-label="출발지와 도착지 바꾸기">⇄</button>
-          <div class="search-field route-field">
-            <label>도착지</label>
-            <div class="field-control"><span class="field-icon">⌖</span><select id="destination"><option value="ANY">어디든 · 특가 우선</option><optgroup label="일본"><option value="NRT">도쿄 · NRT</option><option value="KIX">오사카 · KIX</option><option value="NGO">나고야 · NGO</option><option value="FUK">후쿠오카 · FUK</option><option value="CTS">삿포로 · CTS</option><option value="HKD">하코다테 · HKD</option><option value="OBO">오비히로 · OBO</option><option value="AOJ">아오모리 · AOJ</option><option value="SDJ">센다이 · SDJ</option><option value="KIJ">니가타 · KIJ</option><option value="IBR">이바라키 · IBR</option><option value="FSZ">시즈오카 · FSZ</option><option value="KMQ">고마쓰 · KMQ</option><option value="OKJ">오카야마 · OKJ</option><option value="YGJ">요나고 · YGJ</option><option value="HIJ">히로시마 · HIJ</option><option value="TAK">다카마쓰 · TAK</option><option value="MYJ">마쓰야마 · MYJ</option><option value="HSG">사가 · HSG</option><option value="NGS">나가사키 · NGS</option><option value="OIT">오이타 · OIT</option><option value="KMJ">구마모토 · KMJ</option><option value="KMI">미야자키 · KMI</option><option value="KOJ">가고시마 · KOJ</option><option value="OKA">오키나와(나하) · OKA</option><option value="ISG">이시가키 · ISG</option></optgroup></select></div>
-          </div>
-          <div class="search-divider"></div>
-          <div class="search-field date-field">
-            <label>여행 기간</label>
-            <div class="field-control"><span class="field-icon">▣</span><input id="travelDates" type="text" value="11/07 — 11/10" aria-label="여행 기간" /></div>
-          </div>
-          <div class="search-divider"></div>
-          <div class="search-field passenger-field">
-            <label>여행자</label>
-            <div class="field-control"><span class="field-icon">♙</span><select id="passengers"><option>성인 1명</option><option>성인 2명</option><option>성인 3명</option><option>성인 4명</option></select></div>
-          </div>
-          <button class="primary-button search-button" id="searchButton"><span class="search-glyph">⌕</span><span>특가 찾기</span></button>
-        </section>
-
-        <div class="content-grid">
-          <div class="content-main">
-            <div class="section-heading" id="deals">
-              <div><span class="section-kicker">CURATED FOR YOU</span><h2>오늘의 땡처리</h2></div>
-              <div class="heading-actions"><button class="filter-button active" data-filter="all">전체</button><button class="filter-button" data-filter="international">해외</button><button class="filter-button" data-filter="domestic">국내</button><button class="sort-button" id="sortDeals">최저가순 ↕</button></div>
-            </div>
-
-            <div class="deal-list" id="dealList"></div>
-            <button class="load-more" id="loadMore">더 많은 특가 보기 <span>↗</span></button>
-
-            <div class="insight-row" id="saved">
-              <div class="insight-card price-insight">
-                <div class="insight-top"><span class="section-kicker">PRICE PULSE</span><span class="pulse-label"><i></i> 실시간</span></div>
-                <h3>최근 24시간 동안<br /><strong>가장 많이 떨어진 노선</strong></h3>
-                <div class="pulse-route"><div><b>ICN</b><small>서울</small></div><span>→</span><div><b>TPE</b><small>타이베이</small></div><strong class="pulse-price">₩118,900</strong></div>
-                <div class="sparkline" aria-label="가격 하락 그래프"><span style="height: 34%"></span><span style="height: 54%"></span><span style="height: 42%"></span><span style="height: 66%"></span><span style="height: 48%"></span><span style="height: 72%"></span><span style="height: 58%"></span><span style="height: 82%"></span><span style="height: 68%"></span><span style="height: 100%"></span></div>
-                <div class="insight-foot"><span>어제보다 <strong>−31%</strong></span><span>방금 확인 · 2분 전</span></div>
-              </div>
-              <div class="insight-card saved-insight">
-                <div class="insight-top"><span class="section-kicker">MY ROUTES</span><button class="tiny-arrow">↗</button></div>
-                <h3>찜한 노선<br /><strong>3개를 지켜보고 있어요</strong></h3>
-                <div class="route-stack"><div><span class="route-dot mint"></span><span>서울 <b>→</b> 오사카</span><strong>₩139,000</strong></div><div><span class="route-dot coral"></span><span>부산 <b>→</b> 후쿠오카</span><strong>₩89,000</strong></div><div><span class="route-dot violet"></span><span>서울 <b>→</b> 하노이</span><strong>₩154,000</strong></div></div>
-                <button class="text-link" id="manageRoutes">노선 관리하기 <span>→</span></button>
-              </div>
-            </div>
-          </div>
-
-          <aside class="right-rail">
-            <section class="alert-card" id="alerts">
-              <div class="alert-header"><div><span class="section-kicker">ALERT CENTER</span><h2>알림 스케줄</h2></div><label class="toggle-wrap"><input id="alertToggle" type="checkbox" checked /><span class="toggle-slider"></span></label></div>
-              <p class="alert-description">가격이 내려가면 놓치지 않도록<br />매일 세 번 알려드릴게요.</p>
-              <div class="alert-status"><span class="status-icon">♧</span><span><strong id="alertStatusText">휴대폰 알림 켜짐</strong><small>마지막 발송 · 오늘 09:00</small></span></div>
-              <div class="time-label"><span>알림 시간</span><span class="mono">KST</span></div>
-              <div class="time-grid"><button class="time-chip selected" data-time="09:00">09:00</button><button class="time-chip selected" data-time="15:00">15:00</button><button class="time-chip selected" data-time="21:00">21:00</button><button class="time-chip add-time" data-time="추가">＋</button></div>
-              <div class="alert-channel"><div class="channel-icon">⌁</div><div><strong>스마트 알림</strong><small>이 기기의 푸시 알림으로 받기</small></div><span class="channel-check">✓</span></div>
-              <button class="save-alert-button" id="saveAlert">알림 설정 저장 <span>→</span></button>
-              <button class="test-alert-button" id="testAlert">테스트 알림 보내기</button>
-              <p class="alert-note">※ 실제 항공권 가격은 판매처 사정에 따라<br />변동될 수 있어요.</p>
-            </section>
-
-            <section class="mini-stats">
-              <div class="mini-stat"><span class="stat-icon mint-bg">✦</span><div><strong>46</strong><small>최근 24시간 특가</small></div></div>
-              <div class="mini-stat"><span class="stat-icon coral-bg">↘</span><div><strong>₩79,000</strong><small>오늘의 최저가</small></div></div>
-              <div class="mini-stat"><span class="stat-icon violet-bg">◷</span><div><strong>18:00</strong><small>다음 알림 예정</small></div></div>
-            </section>
-
-            <section class="help-card" id="settings"><div class="help-icon">?</div><div><strong>땡항공이 처음인가요?</strong><p>땡처리 항공권을<br />찾는 방법을 알려드려요.</p><button>가이드 읽기 <span>→</span></button></div></section>
-          </aside>
+        <div class="map-frame">
+          <div class="map-toolbar"><span>JAPAN / CITY LOCATOR</span><span class="map-live"><i></i> LIVE</span></div>
+          <div id="japanMap" class="leaflet-map" aria-label="일본 26개 도시 특가 지도"></div>
+          <div class="map-footer"><span>마커를 누르면 OSM 도시 위치와 특가를 볼 수 있어요.</span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a></div>
         </div>
+      </section>
 
-        <footer class="footer"><span>© 2026 TTANG AIR</span><span>가격 정보는 참고용이며 예약 시점에 달라질 수 있습니다.</span><span><a href="#settings">이용 안내</a> · <a href="#settings">개인정보</a></span></footer>
-      </main>
-    </div>
-    <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-icon">✓</span><span id="toastMessage">저장했어요.</span></div>
+      <section class="deals-section" id="deals">
+        <div class="deals-heading"><div><p class="eyebrow"><span></span> TODAY'S DEALS</p><h2>오늘의 땡처리</h2></div><span class="deals-rule"></span><p class="deals-caption">인천 출발 기준, 30만원 미만</p></div>
+        <div class="deal-list" id="dealList"><div class="loading-state">오늘의 특가를 불러오는 중이에요…</div></div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><span>민호의 일본땡처리</span><span>가격과 좌석은 예약 시점에 달라질 수 있습니다.</span></footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./app.js"></script>
   </body>
