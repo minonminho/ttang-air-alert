@@ -62,11 +62,12 @@ function createJob(destinationCode) {
   return job;
 }
 
-function createAllCitiesJob() {
+function createAllCitiesJob(mode = "quick") {
   const id = crypto.randomUUID();
   const job = {
     id,
     type: "all-cities",
+    mode,
     destinationCode: "ALL",
     destination: "전체 도시",
     status: "queued",
@@ -90,6 +91,7 @@ async function saveLatestFlightResults(job, status = job.status) {
     await fs.mkdir(path.dirname(latestResultsPath), { recursive: true });
     await fs.writeFile(latestResultsPath, JSON.stringify({
       jobId: job.id,
+      mode: job.mode || "full",
       status,
       updatedAt: new Date().toISOString(),
       progress: job.progress,
@@ -145,6 +147,7 @@ async function runAllCitiesJob(job) {
         const result = await searchNaver({
           destinationCode,
           includeAllResults: true,
+          mode: job.mode,
           headless,
           onProgress: (progress) => {
             job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, ...progress };
@@ -218,10 +221,16 @@ const server = http.createServer(async (request, response) => {
     }
   }
   if (request.method === "POST" && request.url === "/api/search-all") {
-    if (runningJobId || refreshState.status === "running") return sendJson(response, 409, { error: "이미 다른 업데이트 작업이 진행 중입니다." });
-    const job = createAllCitiesJob();
-    void runAllCitiesJob(job);
-    return sendJson(response, 202, { jobId: job.id, status: job.status, destination: job.destination, totalCities: DESTINATIONS.size });
+    try {
+      const body = await readBody(request);
+      const mode = body.mode === "full" ? "full" : "quick";
+      if (runningJobId || refreshState.status === "running") return sendJson(response, 409, { error: "이미 다른 업데이트 작업이 진행 중입니다." });
+      const job = createAllCitiesJob(mode);
+      void runAllCitiesJob(job);
+      return sendJson(response, 202, { jobId: job.id, status: job.status, destination: job.destination, mode: job.mode, totalCities: DESTINATIONS.size });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
   }
   const match = request.method === "GET" ? request.url.match(/^\/api\/jobs\/([^/?]+)$/) : null;
   if (match) {

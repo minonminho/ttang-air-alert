@@ -1,10 +1,12 @@
 import { chromium } from "playwright";
+import { getFreshFlightCacheEntry, loadFlightCache, makeFlightCacheKey, saveFlightCache } from "./flight-cache.mjs";
 
 const NAVER_BASE_URL = "https://flight.naver.com";
 const DEPARTURE_CODE = "ICN";
 const TRIP_DAYS = [3, 4, 5, 6];
 const TOP_RESULTS = 5;
 const MIN_PRICE = 100000;
+const QUICK_REFINE_WEEKS = 3;
 const DEFAULT_SEARCH_DELAY_MS = 1500;
 
 export const DESTINATIONS = new Map([
@@ -80,6 +82,48 @@ export function makeCandidateTrips({ startDate = new Date(), months = 3 } = {}) 
     }
   }
   return trips;
+}
+
+function tripKey(trip) {
+  return `${trip.departureDate}|${trip.returnDate}`;
+}
+
+function weekKey(value) {
+  const date = parseDate(value);
+  if (!date) return String(value);
+  const monday = new Date(date);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return dateKey(monday);
+}
+
+export function makeQuickCandidateTrips({ startDate = new Date(), months = 3 } = {}) {
+  const fullTrips = makeCandidateTrips({ startDate, months });
+  const grouped = new Map();
+  for (const trip of fullTrips) {
+    const key = `${weekKey(trip.departureDate)}|${trip.tripDays}`;
+    const trips = grouped.get(key) || [];
+    trips.push(trip);
+    grouped.set(key, trips);
+  }
+  const sampled = [];
+  for (const trips of grouped.values()) {
+    sampled.push(trips[0]);
+    if (tripKey(trips.at(-1)) !== tripKey(trips[0])) sampled.push(trips.at(-1));
+  }
+  return sampled.sort((left, right) => String(left.departureDate).localeCompare(String(right.departureDate)) || left.tripDays - right.tripDays);
+}
+
+function selectRefinementTrips({ allTrips, initialTrips, results, weeks = QUICK_REFINE_WEEKS }) {
+  const initialKeys = new Set(initialTrips.map(tripKey));
+  const weekPrices = new Map();
+  for (const result of results) {
+    const price = Number(result.price);
+    if (!Number.isFinite(price)) continue;
+    const key = weekKey(result.departureDate);
+    weekPrices.set(key, Math.min(weekPrices.get(key) ?? Number.POSITIVE_INFINITY, price));
+  }
+  const selectedWeeks = new Set([...weekPrices.entries()].sort((left, right) => left[1] - right[1]).slice(0, weeks).map(([key]) => key));
+  return allTrips.filter((trip) => selectedWeeks.has(weekKey(trip.departureDate)) && !initialKeys.has(tripKey(trip)));
 }
 
 function parsePrices(text) {
@@ -169,27 +213,52 @@ export async function searchNaver({
   onProgress = () => {},
   onResults = () => {},
   includeAllResults = false,
+  mode = "full",
   headless = true,
   searchDelayMs = DEFAULT_SEARCH_DELAY_MS,
+  cacheTtlHours = Number(process.env.TTANG_FLIGHT_CACHE_HOURS || 24),
 } = {}) {
   if (!DESTINATIONS.has(destinationCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${destinationCode}`);
 
-  const trips = makeCandidateTrips({ startDate, months });
+  const allTrips = makeCandidateTrips({ startDate, months });
+  const initialTrips = mode === "quick" ? makeQuickCandidateTrips({ startDate, months }) : allTrips;
+  const cache = await loadFlightCache({ ttlMs: Math.max(1, cacheTtlHours) * 60 * 60 * 1000 });
   const results = [];
-  const browser = await chromium.launch({ headless });
-  const context = await browser.newContext({ locale: "ko-KR", timezoneId: "Asia/Seoul" });
-  const page = await context.newPage();
+  let cacheDirty = false;
+  let searchedTrips = 0;
+  let browser = null;
+  let context = null;
+  let page = null;
 
-  try {
+  async function ensurePage() {
+    if (page) return page;
+    browser = await chromium.launch({ headless });
+    context = await browser.newContext({ locale: "ko-KR", timezoneId: "Asia/Seoul" });
+    page = await context.newPage();
+    return page;
+  }
+
+  async function searchTrips(trips, phase) {
     for (let index = 0; index < trips.length; index += 1) {
       const trip = trips[index];
       const departure = parseDate(trip.departureDate);
       const returnDate = parseDate(trip.returnDate);
       const searchUrl = makeSearchUrl(destinationCode, departure, returnDate);
-      onProgress({ current: index + 1, total: trips.length, trip, searchUrl });
-      await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-      await waitForFlightPrices(page);
-      const options = await readFlightOptions(page, searchUrl);
+      const cacheKey = makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate);
+      const cached = getFreshFlightCacheEntry(cache, cacheKey);
+      let options = cached?.options || null;
+      const cacheHit = Boolean(options);
+      onProgress({ current: index + 1, total: trips.length, searchedTrips: searchedTrips + 1, phase, cached: cacheHit, trip, searchUrl });
+
+      if (!options) {
+        const activePage = await ensurePage();
+        await activePage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+        await waitForFlightPrices(activePage);
+        options = await readFlightOptions(activePage, searchUrl);
+        cache.entries[cacheKey] = { checkedAt: Date.now(), options };
+        cacheDirty = true;
+      }
+
       const tripResults = options.map((option) => ({
         ...option,
         destinationCode,
@@ -200,24 +269,42 @@ export async function searchNaver({
         source: "네이버 항공권",
       }));
       results.push(...tripResults);
-      onResults(tripResults, { ...trip, index: index + 1, total: trips.length });
-      if (index < trips.length - 1 && searchDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, searchDelayMs));
+      searchedTrips += 1;
+      onResults(tripResults, { ...trip, index: index + 1, total: trips.length, phase, cached: cacheHit });
+      if (!cacheHit && index < trips.length - 1 && searchDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, searchDelayMs));
     }
+  }
+
+  try {
+    await searchTrips(initialTrips, mode === "quick" ? "대표 일정" : "정밀 일정");
+    let refinementTrips = [];
+    if (mode === "quick") {
+      refinementTrips = selectRefinementTrips({ allTrips, initialTrips, results });
+      await searchTrips(refinementTrips, "저렴한 주간 정밀 검색");
+    }
+
+    const searched = [...initialTrips, ...refinementTrips];
+    const bestByDuration = new Map();
+    for (const tripDays of TRIP_DAYS) {
+      bestByDuration.set(tripDays, results.filter((result) => result.tripDays === tripDays).sort((a, b) => a.price - b.price).slice(0, TOP_RESULTS));
+    }
+
+    return {
+      destinationCode,
+      destination: DESTINATIONS.get(destinationCode),
+      criteria: { tripDays: TRIP_DAYS, weekendRequired: true, months, minPrice: MIN_PRICE, topResults: TOP_RESULTS, allTrips: includeAllResults, mode, candidateTrips: searched.length, fullCandidateTrips: allTrips.length, refinementWeeks: mode === "quick" ? QUICK_REFINE_WEEKS : 0 },
+      searchedTrips,
+      results: includeAllResults ? results : [...bestByDuration.values()].flat(),
+    };
   } finally {
-    await context.close();
-    await browser.close();
+    if (context) await context.close();
+    if (browser) await browser.close();
+    if (cacheDirty) {
+      try {
+        await saveFlightCache(cache);
+      } catch (error) {
+        console.error(`항공권 검색 캐시 저장 실패: ${error.message}`);
+      }
+    }
   }
-
-  const bestByDuration = new Map();
-  for (const tripDays of TRIP_DAYS) {
-    bestByDuration.set(tripDays, results.filter((result) => result.tripDays === tripDays).sort((a, b) => a.price - b.price).slice(0, TOP_RESULTS));
-  }
-
-  return {
-    destinationCode,
-    destination: DESTINATIONS.get(destinationCode),
-    criteria: { tripDays: TRIP_DAYS, weekendRequired: true, months, minPrice: MIN_PRICE, topResults: TOP_RESULTS, allTrips: includeAllResults },
-    searchedTrips: trips.length,
-    results: includeAllResults ? results : [...bestByDuration.values()].flat(),
-  };
 }
