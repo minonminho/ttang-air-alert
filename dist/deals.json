@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-18T00:43:39.859Z",
+  "fetchedAt": "2026-10-18T00:51:18.938Z",
   "sources": [
     {
       "id": "ttang",
@@ -15,6 +15,11 @@
       "id": "hanatour",
       "label": "하나투어",
       "url": "https://www.hanatour.com/trp/air/CHPC0AIR0233M200"
+    },
+    {
+      "id": "ybtour",
+      "label": "노랑풍선",
+      "url": "https://fly.ybtour.co.kr/booking/findDiscountAir.lts?efcTpCode=INV&efcCode=INV"
     }
   ],
   "criteria": {
@@ -581,6 +586,26 @@
       "gubun": "HANATOUR",
       "reservationUrl": "https://www.hanatour.com/trp/air/CHPC0AIR0222M201?fareId=RTF%5E3164059%5ETW0281ICNOKA-H7%5ETW0281ICNOKA-8%5E20261027%5ET%5EKRW%5E6552915%5E5412043%5E%5E1%5E0%5E0&depPlcNm=%EC%9D%B8%EC%B2%9C+%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD&arrPlcNm=%EB%82%98%ED%95%98+%EA%B3%B5%ED%95%AD&itnrTypeCd=RT&adtCnt=1&chdCnt=0&infCnt=0&cabinType=Y&cardPromId=&eventCd=",
       "sourceUrl": "https://www.hanatour.com/trp/air/CHPC0AIR0233M200"
+    },
+    {
+      "sourceId": "ybtour",
+      "sourceName": "노랑풍선",
+      "departure": "인천",
+      "departureCode": "ICN",
+      "arrival": "다카마쓰",
+      "arrivalCode": "TAK",
+      "airline": "에어서울",
+      "airlineCode": "RS",
+      "nonstop": false,
+      "fromDate": "2026.11.08",
+      "toDate": "2026.12.16",
+      "tripType": "왕복",
+      "price": 299000,
+      "minimumPassengers": 1,
+      "masterId": "RS0297ICNTAK-T1",
+      "gubun": "YBTOUR",
+      "reservationUrl": "https://fly.ybtour.co.kr/booking/findDiscountAir.lts?efcTpCode=INV&efcCode=INV&efcBannerCode=J1&efcCityCode=TAK#faregroup_RS0297ICNTAK-T1",
+      "sourceUrl": "https://fly.ybtour.co.kr/booking/findDiscountAir.lts?efcTpCode=INV&efcCode=INV"
     }
   ]
 }

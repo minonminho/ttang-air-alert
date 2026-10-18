@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { crawlTtangAir, SOURCE_ID as TTANG_SOURCE_ID, SOURCE_NAME as TTANG_SOURCE_NAME } from "./ttangair-crawler.mjs";
 import { crawlModetour, SOURCE_ID as MODETOUR_SOURCE_ID, SOURCE_NAME as MODETOUR_SOURCE_NAME, SOURCE_URL as MODETOUR_SOURCE_URL } from "./modetour-crawler.mjs";
 import { crawlHanatour, SOURCE_ID as HANATOUR_SOURCE_ID, SOURCE_NAME as HANATOUR_SOURCE_NAME, SOURCE_URL as HANATOUR_SOURCE_URL } from "./hanatour-crawler.mjs";
+import { crawlYbtour, SOURCE_ID as YBTOUR_SOURCE_ID, SOURCE_NAME as YBTOUR_SOURCE_NAME, SOURCE_URL as YBTOUR_SOURCE_URL } from "./ybtour-crawler.mjs";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = resolve(projectRoot, "dist", "deals.json");
@@ -12,11 +13,13 @@ const sources = [
   { id: TTANG_SOURCE_ID, label: TTANG_SOURCE_NAME, url: ttangSource },
   { id: MODETOUR_SOURCE_ID, label: MODETOUR_SOURCE_NAME, url: MODETOUR_SOURCE_URL },
   { id: HANATOUR_SOURCE_ID, label: HANATOUR_SOURCE_NAME, url: HANATOUR_SOURCE_URL },
+  { id: YBTOUR_SOURCE_ID, label: YBTOUR_SOURCE_NAME, url: YBTOUR_SOURCE_URL },
 ];
 const crawls = await Promise.allSettled([
   crawlTtangAir({ listUrl: ttangSource, departureCode: "ICN", maxPrice: 300000 }),
   crawlModetour({ departureCode: "ICN", maxPrice: 300000 }),
   crawlHanatour({ departureCode: "ICN", maxPrice: 300000 }),
+  crawlYbtour({ departureCode: "ICN", maxPrice: 300000 }),
 ]);
 const deals = crawls.flatMap((result, index) => {
   if (result.status === "fulfilled") return result.value;

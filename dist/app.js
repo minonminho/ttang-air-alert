@@ -32,6 +32,7 @@ const dealSources = [
   { id: "ttang", label: "땡처리닷컴", url: "https://www.ttang.com/ttangair/search/ttang/list.do?arr0=A7ALL" },
   { id: "modetour", label: "모두투어", url: "https://www.modetour.com/flights/discount-flight" },
   { id: "hanatour", label: "하나투어", url: "https://www.hanatour.com/trp/air/CHPC0AIR0233M200" },
+  { id: "ybtour", label: "노랑풍선", url: "https://fly.ybtour.co.kr/booking/findDiscountAir.lts?efcTpCode=INV&efcCode=INV" },
 ];
 
 let toastTimer;
