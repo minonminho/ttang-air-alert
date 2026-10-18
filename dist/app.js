@@ -56,8 +56,41 @@ function formatPrice(price) {
   return `₩${Number(price).toLocaleString("ko-KR")}`;
 }
 
+const weekdayLabels = ["월", "화", "수", "목", "금", "토", "일"];
+
+function parseDealDate(value) {
+  const match = String(value ?? "").trim().match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDealDate(value) {
+  const date = parseDealDate(value);
+  if (!date) return value;
+  const weekday = weekdayLabels[(date.getDay() + 6) % 7];
+  return `${date.getMonth() + 1}/${date.getDate()}[${weekday}]`;
+}
+
 function formatPeriod(deal) {
-  return `${deal.fromDate} — ${deal.toDate}`;
+  return `${formatDealDate(deal.fromDate)} ~ ${formatDealDate(deal.toDate)}`;
+}
+
+function renderWeekdayStrip(deal) {
+  const from = parseDealDate(deal.fromDate);
+  const to = parseDealDate(deal.toDate);
+  if (!from || !to) return "";
+
+  const start = from <= to ? from : to;
+  const end = from <= to ? to : from;
+  const activeDays = new Set();
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    activeDays.add((cursor.getDay() + 6) % 7);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return `<div class="weekday-strip" aria-label="${formatPeriod(deal)} 일정 요일"><span class="weekday-label">요일</span>${weekdayLabels.map((label, index) => `<span class="weekday-box${activeDays.has(index) ? " active" : ""}">${label}</span>`).join("")}</div>`;
 }
 
 function getDealSourceId(deal) {
@@ -108,7 +141,7 @@ function renderDeals(deals) {
   }
   list.innerHTML = deals.map((deal) => `
     <article class="deal-card" data-arrival="${deal.arrivalCode}">
-      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub"><span class="deal-source-tag">${getDealSourceLabel(deal)}</span> ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p></div>
+      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub"><span class="deal-source-tag">${getDealSourceLabel(deal)}</span> ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p>${renderWeekdayStrip(deal)}</div>
       <strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong>
       <a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a>
     </article>`).join("");
@@ -123,7 +156,7 @@ function showCityDeals(city) {
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
   panel.innerHTML = `
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
-    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${deal.airline} · ${formatPeriod(deal)}</p></div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
+    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
