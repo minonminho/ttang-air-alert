@@ -33,6 +33,7 @@ const dealSources = [
   { id: "modetour", label: "모두투어", url: "https://www.modetour.com/flights/discount-flight" },
   { id: "hanatour", label: "하나투어", url: "https://www.hanatour.com/trp/air/CHPC0AIR0233M200" },
   { id: "ybtour", label: "노랑풍선", url: "https://fly.ybtour.co.kr/booking/findDiscountAir.lts?efcTpCode=INV&efcCode=INV" },
+  { id: "naver", label: "네이버 항공권", url: "https://flight.naver.com/flights/everywhere/monthly/SEL" },
 ];
 
 let toastTimer;
