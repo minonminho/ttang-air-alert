@@ -630,11 +630,6 @@ async function refreshTodayDeals() {
 }
 
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
-document.querySelector("#refreshDeals").addEventListener("click", refreshTodayDeals);
-document.querySelector("#allFlightSearch").addEventListener("click", openAllCitySearchPanel);
-document.querySelector("#fullFlightSearch").addEventListener("click", () => openAllCitySearchPanel("full"));
-document.querySelector("#liveFlightsSearch").addEventListener("click", () => runAllCityFlightSearch("quick"));
-document.querySelector("#liveFlightsFullSearch").addEventListener("click", () => runAllCityFlightSearch("full"));
 document.querySelector("#liveCityFilter").addEventListener("change", (event) => { liveFlightCity = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveAirlineFilter").addEventListener("change", (event) => { liveFlightAirline = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 renderCityPicker();

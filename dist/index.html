@@ -29,7 +29,7 @@
           <div class="map-summary"><strong id="mapDealCount">오늘의 특가</strong><span>인천 출발 · 30만원 미만</span></div>
         </div>
         <div class="city-picker" aria-label="일본 도시 바로가기">
-          <div class="city-picker-header"><div><span class="city-picker-kicker">CITY SHORTCUTS</span><strong>도시 바로가기</strong></div><div class="city-picker-header-actions"><span><b class="city-picker-legend">★ 대도시</b> · 도시를 고르면 지도와 특가가 함께 열려요</span><button id="allFlightSearch" class="all-flight-search" type="button">빠른 전체 검색</button><button id="fullFlightSearch" class="all-flight-search full-flight-search" type="button">정밀 검색</button></div></div>
+          <div class="city-picker-header"><div><span class="city-picker-kicker">CITY SHORTCUTS</span><strong>도시 바로가기</strong></div><div class="city-picker-header-actions"><span><b class="city-picker-legend">★ 대도시</b> · 도시를 고르면 지도와 특가가 함께 열려요</span></div></div>
           <div id="cityPicker" class="city-picker-grid"></div>
         </div>
         <div class="map-frame">
@@ -41,13 +41,13 @@
       </section>
 
       <section class="deals-section live-flights-section" id="liveFlights">
-        <div class="deals-heading"><div><p class="eyebrow"><span></span> LIVE FLIGHTS</p><h2>실시간 항공권 정보</h2></div><span class="deals-rule"></span><div class="deals-heading-actions"><p class="deals-caption" id="liveFlightsStatus">빠른 검색 결과가 여기에 표시됩니다</p><button id="liveFlightsSearch" class="deals-refresh" type="button">빠른 전체 검색</button><button id="liveFlightsFullSearch" class="deals-refresh full-flight-search" type="button">정밀 전체 검색</button></div></div>
+        <div class="deals-heading"><div><p class="eyebrow"><span></span> LIVE FLIGHTS</p><h2>실시간 항공권 정보</h2></div><span class="deals-rule"></span><div class="deals-heading-actions"><p class="deals-caption" id="liveFlightsStatus">매일 한국시간 01:00 자동 갱신</p></div></div>
         <div class="live-flight-filters" aria-label="실시간 항공권 필터"><label>도시 <select id="liveCityFilter"><option value="all">전체 도시</option></select></label><label>항공사 <select id="liveAirlineFilter"><option value="all">전체 항공사</option></select></label><span id="liveFlightCount">0개 항공권</span></div>
-        <div class="live-flight-list" id="liveFlightList"><div class="empty-state">위의 전체 도시 가져오기를 누르면 네이버 항공권 검색 결과가 최저가순으로 표시됩니다.</div></div>
+        <div class="live-flight-list" id="liveFlightList"><div class="empty-state">매일 한국시간 01:00에 갱신된 네이버 항공권 검색 결과가 표시됩니다.</div></div>
       </section>
 
       <section class="deals-section" id="deals">
-        <div class="deals-heading"><div><p class="eyebrow"><span></span> TODAY'S DEALS</p><h2>오늘의 땡처리</h2></div><span class="deals-rule"></span><div class="deals-heading-actions"><p class="deals-caption">인천 출발 기준, 30만원 미만</p><button id="refreshDeals" class="deals-refresh" type="button">↻ 업데이트</button></div></div>
+        <div class="deals-heading"><div><p class="eyebrow"><span></span> TODAY'S DEALS</p><h2>오늘의 땡처리</h2></div><span class="deals-rule"></span><div class="deals-heading-actions"><p class="deals-caption">인천 출발 기준, 30만원 미만 · 매일 한국시간 01:00 자동 갱신</p></div></div>
         <div class="source-filters" aria-label="항공권 사이트별 필터">
           <div class="source-filters-heading"><span>SOURCE FILTERS</span><small>사이트별 특가 모아보기</small></div>
           <div id="sourceFilters" class="source-filter-list"></div>
