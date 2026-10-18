@@ -24,11 +24,7 @@ node .\crawler\hanatour-crawler.mjs
 node .\crawler\ybtour-crawler.mjs
 ```
 
-네이버 항공권은 일본 도시별 월간 최저가 그래프를 조회해 3·4·5·6일 일정마다 가장 저렴한 5개 날짜를 수집하고, 네이버 검색 결과 링크를 생성합니다.
-
-```powershell
-node .\crawler\naver-crawler.mjs
-```
+네이버 항공권은 오늘의 땡처리 목록에서 제외하고, 지도 도시 패널의 개인용 Playwright 워커로 별도 검색합니다. 워커 실행 방법은 `worker/README.md`를 참고하세요.
 
 대시보드에 표시되는 스냅샷을 최신 데이터로 갱신하려면 다음 명령을 실행합니다.
 
@@ -38,7 +34,7 @@ node .\crawler\update-snapshot.mjs
 
 운영 환경에서는 이 갱신 명령을 별도 Node 실행 환경에서 09:00·15:00·21:00(KST)에 실행하고, `dist/deals.json` 대신 D1이나 별도 API 저장소에 기록하는 방식으로 전환하면 됩니다.
 
-`update-snapshot.mjs`는 현재 땡처리닷컴, 모두투어, 하나투어, 노랑풍선, 네이버 항공권을 함께 수집해 사이트별 `sourceId`와 `sourceName`을 포함한 하나의 스냅샷을 만듭니다.
+`update-snapshot.mjs`는 현재 땡처리닷컴, 모두투어, 하나투어, 노랑풍선을 수집해 사이트별 `sourceId`와 `sourceName`을 포함한 하나의 스냅샷을 만듭니다. 네이버 항공권은 별도 Playwright 워커에서 검색합니다.
 
 현재 수집기는 다음 값을 반환합니다.
 

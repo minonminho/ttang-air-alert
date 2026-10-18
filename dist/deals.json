@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-18T01:05:04.758Z",
+  "fetchedAt": "2026-10-18T02:22:32.867Z",
   "sources": [
     {
       "id": "ttang",
@@ -20,17 +20,11 @@
       "id": "ybtour",
       "label": "노랑풍선",
       "url": "https://fly.ybtour.co.kr/booking/findDiscountAir.lts?efcTpCode=INV&efcCode=INV"
-    },
-    {
-      "id": "naver",
-      "label": "네이버 항공권",
-      "url": "https://flight.naver.com/flights/everywhere/monthly/SEL"
     }
   ],
   "criteria": {
     "departureCode": "ICN",
-    "maxPriceExclusive": 300000,
-    "naver": "일본 도시별 3·4·5·6일 일정 최저가 5개"
+    "maxPriceExclusive": 300000
   },
   "deals": [
     {
