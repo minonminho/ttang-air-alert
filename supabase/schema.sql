@@ -8,6 +8,7 @@ create table if not exists public.ttang_snapshots (
 alter table public.ttang_snapshots enable row level security;
 
 grant select on public.ttang_snapshots to anon, authenticated;
+grant select, insert, update on public.ttang_snapshots to service_role;
 
 drop policy if exists "Anyone can read snapshots" on public.ttang_snapshots;
 create policy "Anyone can read snapshots"
