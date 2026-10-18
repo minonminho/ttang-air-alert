@@ -52,15 +52,3 @@ jobs:
 
       - name: Search Naver flights for all 26 cities
         run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE"
-
-      - name: Commit updated snapshot
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/deals.json
-          if git diff --cached --quiet; then
-            echo "No deal changes to commit."
-            exit 0
-          fi
-          git commit -m "chore: update today's deals"
-          git push
