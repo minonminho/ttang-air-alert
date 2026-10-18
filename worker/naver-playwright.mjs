@@ -92,13 +92,22 @@ function failureFromPage(text) {
   return null;
 }
 
+async function waitForFlightPrices(page, timeoutMs = 30000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const text = await page.locator("body").innerText();
+    const failure = failureFromPage(text);
+    if (failure) throw new Error(failure);
+    if (parsePrices(text).length) return;
+    await page.waitForTimeout(1000);
+  }
+  throw new Error("네이버 항공권 결과가 30초 안에 표시되지 않아 검색을 중단했습니다.");
+}
+
 async function readFlightOptions(page, searchUrl) {
   const text = await page.locator("body").innerText();
   const failure = failureFromPage(text);
   if (failure) throw new Error(failure);
-  if (/가격 변동 그래프 로딩 중|항공권 검색 결과를 불러오는 중/i.test(text)) {
-    throw new Error("네이버 항공권 결과가 아직 로딩 중이라 검색을 중단했습니다.");
-  }
 
   const options = await page.locator("li, article, [class*='item'], [class*='result']").evaluateAll((nodes) => nodes
     .map((node) => {
@@ -152,7 +161,7 @@ export async function searchNaver({
       const searchUrl = makeSearchUrl(destinationCode, departure, returnDate);
       onProgress({ current: index + 1, total: trips.length, trip, searchUrl });
       await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-      await page.waitForTimeout(3500);
+      await waitForFlightPrices(page);
       const options = await readFlightOptions(page, searchUrl);
       results.push(...options.map((option) => ({
         ...option,

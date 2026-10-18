@@ -63,9 +63,10 @@ async function runJob(job) {
   runningJobId = job.id;
   job.status = "running";
   try {
+    const headless = process.env.TTANG_HEADLESS == null ? process.platform !== "win32" : process.env.TTANG_HEADLESS !== "false";
     const result = await searchNaver({
       destinationCode: job.destinationCode,
-      headless: process.env.TTANG_HEADLESS !== "false",
+      headless,
       onProgress: (progress) => { job.progress = progress; },
     });
     job.status = "succeeded";
