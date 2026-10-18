@@ -11,6 +11,7 @@ const jobs = new Map();
 let runningJobId = null;
 let refreshState = { status: "idle", error: null, output: "" };
 const staticRoot = path.resolve(process.cwd(), "dist");
+const latestResultsPath = path.resolve(process.cwd(), "worker", "data", "latest-flight-results.json");
 const staticFiles = {
   "/": ["index.html", "text/html; charset=utf-8"],
   "/index.html": ["index.html", "text/html; charset=utf-8"],
@@ -84,6 +85,30 @@ function latestAllCitiesJob() {
     .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))[0] || null;
 }
 
+async function saveLatestFlightResults(job, status = job.status) {
+  try {
+    await fs.mkdir(path.dirname(latestResultsPath), { recursive: true });
+    await fs.writeFile(latestResultsPath, JSON.stringify({
+      jobId: job.id,
+      status,
+      updatedAt: new Date().toISOString(),
+      progress: job.progress,
+      results: job.results || [],
+      errors: job.errors || [],
+    }));
+  } catch (error) {
+    console.error(`최신 항공권 결과 저장 실패: ${error.message}`);
+  }
+}
+
+async function readLatestFlightResults() {
+  try {
+    return JSON.parse(await fs.readFile(latestResultsPath, "utf8"));
+  } catch {
+    return { status: "empty", results: [] };
+  }
+}
+
 async function runJob(job) {
   runningJobId = job.id;
   job.status = "running";
@@ -110,6 +135,7 @@ async function runJob(job) {
 async function runAllCitiesJob(job) {
   runningJobId = job.id;
   job.status = "running";
+  await saveLatestFlightResults(job);
   const destinations = [...DESTINATIONS.entries()];
   try {
     for (let index = 0; index < destinations.length; index += 1) {
@@ -118,22 +144,34 @@ async function runAllCitiesJob(job) {
         const headless = process.env.TTANG_HEADLESS == null ? process.platform !== "win32" : process.env.TTANG_HEADLESS !== "false";
         const result = await searchNaver({
           destinationCode,
+          includeAllResults: true,
           headless,
           onProgress: (progress) => {
             job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, ...progress };
           },
+          onResults: (items, trip) => {
+            job.results.push(...items);
+            job.searchedTrips = (job.searchedTrips || 0) + 1;
+            job.resultCount = job.results.length;
+            job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, current: trip.index, total: trip.total, trip };
+          },
         });
-        job.results.push(...result.results);
+        if (!job.results.length && result.results.length) job.results.push(...result.results);
+        job.searchedTrips = Math.max(job.searchedTrips || 0, result.searchedTrips);
+        job.resultCount = job.results.length;
+        await saveLatestFlightResults(job, "running");
       } catch (error) {
         job.errors.push({ destinationCode, destination, error: error.message });
         throw error;
       }
     }
     job.status = "succeeded";
-    job.searchedTrips = job.results.length;
+    job.resultCount = job.results.length;
+    await saveLatestFlightResults(job);
   } catch (error) {
     job.status = "failed";
     job.error = error.message;
+    await saveLatestFlightResults(job, "failed");
   } finally {
     job.finishedAt = new Date().toISOString();
     runningJobId = null;
@@ -165,6 +203,7 @@ const server = http.createServer(async (request, response) => {
     const job = runningJob || latestAllCitiesJob();
     return sendJson(response, 200, { active: Boolean(runningJob), job });
   }
+  if (request.method === "GET" && request.url === "/api/flights/latest") return sendJson(response, 200, await readLatestFlightResults());
   if (request.method === "POST" && request.url === "/api/search") {
     try {
       const body = await readBody(request);

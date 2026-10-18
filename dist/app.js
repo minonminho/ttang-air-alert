@@ -42,6 +42,12 @@ let japanMap = null;
 let japanBounds = [];
 let selectedCity = null;
 const markerByCode = new Map();
+const LIVE_FLIGHTS_PER_PAGE = 20;
+let liveFlightResults = [];
+let liveFlightPage = 1;
+let liveFlightCity = "all";
+let liveFlightAirline = "all";
+let renderedLiveFlightResultCount = -1;
 
 function showToast(message) {
   const toast = document.querySelector("#toast");
@@ -130,9 +136,20 @@ function normalizeFlightOperation(value) {
     .toLowerCase();
 }
 
+function inferAirline(value) {
+  const knownAirlines = [
+    "대한항공", "아시아나항공", "제주항공", "진에어", "티웨이항공", "에어부산", "에어서울", "이스타항공",
+    "에어프레미아", "플라이강원", "ANA", "일본항공", "JAL", "피치항공", "스카이마크", "스타플라이어",
+    "Jetstar", "젯스타", "Air Japan", "ZIPAIR", "Philippine Airlines",
+  ];
+  const text = String(value ?? "");
+  return knownAirlines.find((airline) => text.toLowerCase().includes(airline.toLowerCase())) || "기타";
+}
+
 function groupFlightResults(results = []) {
   const groups = new Map();
   for (const result of results) {
+    if (Number(result.price) < 100000) continue;
     const operationKey = result.operationKey || normalizeFlightOperation(result.label);
     const key = `${result.destinationCode}|${result.price}|${operationKey}`;
     const group = groups.get(key) || {
@@ -140,6 +157,7 @@ function groupFlightResults(results = []) {
       destinationCode: result.destinationCode,
       price: result.price,
       label: result.label || "항공권 운항 정보",
+      airline: result.airline || inferAirline(result.label),
       schedules: [],
     };
     const scheduleKey = `${result.departureDate}|${result.returnDate}`;
@@ -159,12 +177,62 @@ function groupFlightResults(results = []) {
     .sort((left, right) => left.price - right.price || String(left.destination).localeCompare(String(right.destination), "ko"));
 }
 
+function renderLiveFlightCard(group) {
+  return `<article class="live-flight-card">
+    <div class="live-flight-main">
+      <div class="live-flight-meta"><span class="live-flight-city">${escapeHtml(group.destination)} · ${escapeHtml(group.destinationCode)} · ${escapeHtml(group.airline)}</span><strong>${formatPrice(group.price)}</strong></div>
+      <p class="live-flight-operation">${escapeHtml(group.label)}</p>
+      <div class="live-flight-schedules">${group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener">${schedule.tripDays}일 · ${formatDealDate(schedule.departureDate)} ~ ${formatDealDate(schedule.returnDate)} ↗</a>`).join("")}</div>
+    </div>
+  </article>`;
+}
+
+function getFilteredLiveFlightGroups(groups = groupFlightResults(liveFlightResults)) {
+  return groups.filter((group) => {
+    const cityMatch = liveFlightCity === "all" || group.destinationCode === liveFlightCity;
+    const airlineMatch = liveFlightAirline === "all" || group.airline === liveFlightAirline;
+    return cityMatch && airlineMatch;
+  });
+}
+
+function updateLiveFlightFilters(groups) {
+  const cityFilter = document.querySelector("#liveCityFilter");
+  const airlineFilter = document.querySelector("#liveAirlineFilter");
+  if (!cityFilter || !airlineFilter) return;
+  const citiesByCode = new Map(groups.map((group) => [group.destinationCode, group.destination]));
+  const airlines = [...new Set(groups.map((group) => group.airline))].sort((left, right) => left.localeCompare(right, "ko"));
+  cityFilter.innerHTML = `<option value="all">전체 도시</option>${[...citiesByCode.entries()].map(([code, name]) => `<option value="${escapeHtml(code)}">${escapeHtml(name)} (${escapeHtml(code)})</option>`).join("")}`;
+  airlineFilter.innerHTML = `<option value="all">전체 항공사</option>${airlines.map((airline) => `<option value="${escapeHtml(airline)}">${escapeHtml(airline)}</option>`).join("")}`;
+  if (!citiesByCode.has(liveFlightCity)) liveFlightCity = "all";
+  if (!airlines.includes(liveFlightAirline)) liveFlightAirline = "all";
+  cityFilter.value = liveFlightCity;
+  airlineFilter.value = liveFlightAirline;
+}
+
+function renderLiveFlightList() {
+  const list = document.querySelector("#liveFlightList");
+  const count = document.querySelector("#liveFlightCount");
+  if (!list) return;
+  const allGroups = groupFlightResults(liveFlightResults);
+  updateLiveFlightFilters(allGroups);
+  const groups = getFilteredLiveFlightGroups(allGroups);
+  const totalPages = Math.max(1, Math.ceil(groups.length / LIVE_FLIGHTS_PER_PAGE));
+  if (liveFlightPage > totalPages) liveFlightPage = totalPages;
+  const start = (liveFlightPage - 1) * LIVE_FLIGHTS_PER_PAGE;
+  const visibleGroups = groups.slice(start, start + LIVE_FLIGHTS_PER_PAGE);
+  if (count) count.textContent = `${groups.length}개 항공권 · ${liveFlightPage}/${totalPages}페이지`;
+  list.innerHTML = visibleGroups.length ? `${visibleGroups.map(renderLiveFlightCard).join("")}${totalPages > 1 ? `<div class="live-flight-pagination"><button type="button" data-page="prev" ${liveFlightPage === 1 ? "disabled" : ""}>‹ 이전</button><span>${liveFlightPage} / ${totalPages}</span><button type="button" data-page="next" ${liveFlightPage === totalPages ? "disabled" : ""}>다음 ›</button></div>` : ""}` : '<div class="automation-empty">선택한 필터에 맞는 항공권이 없습니다.</div>';
+  list.querySelector('[data-page="prev"]')?.addEventListener("click", () => { liveFlightPage -= 1; renderLiveFlightList(); });
+  list.querySelector('[data-page="next"]')?.addEventListener("click", () => { liveFlightPage += 1; renderLiveFlightList(); });
+}
+
 function renderAllAutomationResults(job, container) {
   const groups = groupFlightResults(job.results || []);
-  container.innerHTML = groups.length ? groups.map((group) => `
+  const visibleGroups = groups.slice(0, LIVE_FLIGHTS_PER_PAGE);
+  container.innerHTML = visibleGroups.length ? visibleGroups.map((group) => `
     <article class="live-flight-card">
       <div class="live-flight-main">
-        <div class="live-flight-meta"><span class="live-flight-city">${escapeHtml(group.destination)} · ${escapeHtml(group.destinationCode)}</span><strong>${formatPrice(group.price)}</strong></div>
+        <div class="live-flight-meta"><span class="live-flight-city">${escapeHtml(group.destination)} · ${escapeHtml(group.destinationCode)} · ${escapeHtml(group.airline)}</span><strong>${formatPrice(group.price)}</strong></div>
         <p class="live-flight-operation">${escapeHtml(group.label)}</p>
         <div class="live-flight-schedules">${group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener">${schedule.tripDays}일 · ${formatDealDate(schedule.departureDate)} ~ ${formatDealDate(schedule.returnDate)} ↗</a>`).join("")}</div>
       </div>
@@ -178,9 +246,10 @@ function setAllFlightStatus(message) {
 }
 
 function renderAllFlightResults(job) {
-  document.querySelectorAll("#allCityFlightResults, #liveFlightList").forEach((container) => {
-    renderAllAutomationResults(job, container);
-  });
+  liveFlightResults = Array.isArray(job.results) ? job.results : [];
+  renderedLiveFlightResultCount = liveFlightResults.length;
+  renderLiveFlightList();
+  document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults(job, container));
 }
 
 function openAllCitySearchPanel() {
@@ -201,7 +270,6 @@ function openAllCitySearchPanel() {
 }
 
 async function runAllCityFlightSearch(existingJob = null) {
-  const panel = document.querySelector("#cityDealsPanel");
   const buttons = [...new Set([...document.querySelectorAll("#allFlightSearch, #allCityFlightSearch, #liveFlightsSearch")])];
   const resultBoxes = [...new Set([...document.querySelectorAll("#allCityFlightResults, #liveFlightList")])];
   if (!buttons.length || !resultBoxes.length) return;
@@ -214,6 +282,7 @@ async function runAllCityFlightSearch(existingJob = null) {
   resultBoxes.forEach((resultBox) => {
     resultBox.innerHTML = '<div class="automation-loading">전체 도시 검색을 준비하고 있어요…</div>';
   });
+  if (!existingJob) renderedLiveFlightResultCount = -1;
   let workerConnected = Boolean(existingJob);
 
   try {
@@ -233,7 +302,7 @@ async function runAllCityFlightSearch(existingJob = null) {
 
     while (job.status === "queued" || job.status === "running") {
       if (job.progress) setAllFlightStatus(`${job.progress.cityIndex}/${job.progress.totalCities} 도시 · ${job.progress.city} · ${job.progress.current}/${job.progress.total}개 일정`);
-      if (job.results?.length) renderAllFlightResults(job);
+      if (job.results?.length && job.results.length !== renderedLiveFlightResultCount) renderAllFlightResults(job);
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const jobResponse = await fetch(`${baseUrl}/api/jobs/${jobId}`);
       job = await jobResponse.json();
@@ -256,9 +325,23 @@ async function runAllCityFlightSearch(existingJob = null) {
   }
 }
 
+async function loadLatestAllCityResults(baseUrl) {
+  const response = await fetch(`${baseUrl}/api/flights/latest`);
+  if (!response.ok) return null;
+  const snapshot = await response.json();
+  if (Array.isArray(snapshot.results) && snapshot.results.length) renderAllFlightResults(snapshot);
+  if (snapshot.status === "succeeded" && Array.isArray(snapshot.results)) {
+    setAllFlightStatus(`${groupFlightResults(snapshot.results).length}개 항공권을 최저가순으로 정리했습니다. 중복 운항 정보는 묶었습니다.`);
+  } else if (snapshot.status === "running" && snapshot.progress) {
+    setAllFlightStatus("저장된 최신 결과를 불러오는 중이며, 진행 중인 검색을 확인하고 있어요.");
+  }
+  return snapshot;
+}
+
 async function resumeAllCityFlightSearch() {
   try {
     const baseUrl = getAutomationUrl();
+    await loadLatestAllCityResults(baseUrl);
     const response = await fetch(`${baseUrl}/api/jobs/active`);
     if (!response.ok) return;
     const payload = await response.json();
@@ -536,6 +619,8 @@ document.querySelector("#resetMap").addEventListener("click", resetMapView);
 document.querySelector("#refreshDeals").addEventListener("click", refreshTodayDeals);
 document.querySelector("#allFlightSearch").addEventListener("click", openAllCitySearchPanel);
 document.querySelector("#liveFlightsSearch").addEventListener("click", () => runAllCityFlightSearch());
+document.querySelector("#liveCityFilter").addEventListener("change", (event) => { liveFlightCity = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
+document.querySelector("#liveAirlineFilter").addEventListener("change", (event) => { liveFlightAirline = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 renderCityPicker();
 renderSourceFilters();
 setupMap();

@@ -4,6 +4,7 @@ const NAVER_BASE_URL = "https://flight.naver.com";
 const DEPARTURE_CODE = "ICN";
 const TRIP_DAYS = [3, 4, 5, 6];
 const TOP_RESULTS = 5;
+const MIN_PRICE = 100000;
 const DEFAULT_SEARCH_DELAY_MS = 1500;
 
 export const DESTINATIONS = new Map([
@@ -84,7 +85,7 @@ export function makeCandidateTrips({ startDate = new Date(), months = 3 } = {}) 
 function parsePrices(text) {
   return [...String(text).matchAll(/([0-9]{1,3}(?:,[0-9]{3})+)\s*원/g)]
     .map((match) => Number(match[1].replaceAll(",", "")))
-    .filter((price) => price > 0 && price < 10000000);
+    .filter((price) => price >= MIN_PRICE && price < 10000000);
 }
 
 function normalizeFlightOperation(value) {
@@ -95,6 +96,16 @@ function normalizeFlightOperation(value) {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function extractAirline(value) {
+  const knownAirlines = [
+    "대한항공", "아시아나항공", "제주항공", "진에어", "티웨이항공", "에어부산", "에어서울", "이스타항공",
+    "에어프레미아", "플라이강원", "ANA", "일본항공", "JAL", "피치항공", "스카이마크", "스타플라이어",
+    "Jetstar", "젯스타", "Air Japan", "ZIPAIR", "Philippine Airlines",
+  ];
+  const text = String(value ?? "");
+  return knownAirlines.find((airline) => text.toLowerCase().includes(airline.toLowerCase())) || "기타";
 }
 
 function failureFromPage(text) {
@@ -140,13 +151,13 @@ async function readFlightOptions(page, searchUrl) {
     const key = `${price}|${operationKey}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    parsed.push({ price, label: option.text.slice(0, 180), operationKey, url: option.link || searchUrl });
+    parsed.push({ price, label: option.text.slice(0, 180), airline: extractAirline(option.text), operationKey, url: option.link || searchUrl });
   }
 
   if (!parsed.length) {
     const fallbackPrices = [...new Set(parsePrices(text))].sort((a, b) => a - b).slice(0, TOP_RESULTS);
     if (!fallbackPrices.length) throw new Error("네이버 항공권 가격 정보를 읽지 못했습니다.");
-    return fallbackPrices.map((price) => ({ price, label: "네이버 항공권 검색 결과", operationKey: "네이버 항공권 검색 결과", url: searchUrl }));
+    return fallbackPrices.map((price) => ({ price, label: "네이버 항공권 검색 결과", airline: "기타", operationKey: "네이버 항공권 검색 결과", url: searchUrl }));
   }
   return parsed.sort((left, right) => left.price - right.price).slice(0, TOP_RESULTS);
 }
@@ -156,6 +167,8 @@ export async function searchNaver({
   startDate = new Date(),
   months = 3,
   onProgress = () => {},
+  onResults = () => {},
+  includeAllResults = false,
   headless = true,
   searchDelayMs = DEFAULT_SEARCH_DELAY_MS,
 } = {}) {
@@ -177,7 +190,7 @@ export async function searchNaver({
       await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
       await waitForFlightPrices(page);
       const options = await readFlightOptions(page, searchUrl);
-      results.push(...options.map((option) => ({
+      const tripResults = options.map((option) => ({
         ...option,
         destinationCode,
         destination: DESTINATIONS.get(destinationCode),
@@ -185,7 +198,9 @@ export async function searchNaver({
         returnDate: trip.returnDate,
         tripDays: trip.tripDays,
         source: "네이버 항공권",
-      })));
+      }));
+      results.push(...tripResults);
+      onResults(tripResults, { ...trip, index: index + 1, total: trips.length });
       if (index < trips.length - 1 && searchDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, searchDelayMs));
     }
   } finally {
@@ -201,8 +216,8 @@ export async function searchNaver({
   return {
     destinationCode,
     destination: DESTINATIONS.get(destinationCode),
-    criteria: { tripDays: TRIP_DAYS, weekendRequired: true, months, topResults: TOP_RESULTS },
+    criteria: { tripDays: TRIP_DAYS, weekendRequired: true, months, minPrice: MIN_PRICE, topResults: TOP_RESULTS, allTrips: includeAllResults },
     searchedTrips: trips.length,
-    results: [...bestByDuration.entries()].flatMap(([tripDays, items]) => items.map((item) => ({ ...item, tripDays }))),
+    results: includeAllResults ? results : [...bestByDuration.values()].flat(),
   };
 }
