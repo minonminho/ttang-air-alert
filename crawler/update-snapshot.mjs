@@ -5,6 +5,7 @@ import { crawlTtangAir, SOURCE_ID as TTANG_SOURCE_ID, SOURCE_NAME as TTANG_SOURC
 import { crawlModetour, SOURCE_ID as MODETOUR_SOURCE_ID, SOURCE_NAME as MODETOUR_SOURCE_NAME, SOURCE_URL as MODETOUR_SOURCE_URL } from "./modetour-crawler.mjs";
 import { crawlHanatour, SOURCE_ID as HANATOUR_SOURCE_ID, SOURCE_NAME as HANATOUR_SOURCE_NAME, SOURCE_URL as HANATOUR_SOURCE_URL } from "./hanatour-crawler.mjs";
 import { crawlYbtour, SOURCE_ID as YBTOUR_SOURCE_ID, SOURCE_NAME as YBTOUR_SOURCE_NAME, SOURCE_URL as YBTOUR_SOURCE_URL } from "./ybtour-crawler.mjs";
+import { saveSnapshot } from "../worker/supabase-store.mjs";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = resolve(projectRoot, "dist", "deals.json");
@@ -31,11 +32,14 @@ if (!deals.length && crawls.every((result) => result.status === "rejected")) {
 }
 
 await mkdir(dirname(outputPath), { recursive: true });
-await writeFile(outputPath, `${JSON.stringify({
+const snapshot = {
   fetchedAt: new Date().toISOString(),
   sources,
   criteria: { departureCode: "ICN", maxPriceExclusive: 300000 },
   deals,
-}, null, 2)}\n`, "utf8");
+};
+
+await writeFile(outputPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+if (await saveSnapshot("deals_latest", snapshot)) console.log("Saved deals_latest to Supabase.");
 
 console.log(`Updated ${deals.length} deals at ${outputPath}`);

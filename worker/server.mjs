@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { searchNaver, DESTINATIONS } from "./naver-playwright.mjs";
+import { readSnapshot, saveSnapshot } from "./supabase-store.mjs";
 
 const port = Number(process.env.TTANG_AUTOMATION_PORT || 8787);
 const host = process.env.TTANG_AUTOMATION_HOST || "127.0.0.1";
@@ -87,23 +88,35 @@ function latestAllCitiesJob() {
 }
 
 async function saveLatestFlightResults(job, status = job.status) {
+  const snapshot = {
+    jobId: job.id,
+    mode: job.mode || "full",
+    status,
+    updatedAt: new Date().toISOString(),
+    progress: job.progress,
+    results: job.results || [],
+    errors: job.errors || [],
+  };
   try {
     await fs.mkdir(path.dirname(latestResultsPath), { recursive: true });
-    await fs.writeFile(latestResultsPath, JSON.stringify({
-      jobId: job.id,
-      mode: job.mode || "full",
-      status,
-      updatedAt: new Date().toISOString(),
-      progress: job.progress,
-      results: job.results || [],
-      errors: job.errors || [],
-    }));
+    await fs.writeFile(latestResultsPath, JSON.stringify(snapshot));
   } catch (error) {
     console.error(`최신 항공권 결과 저장 실패: ${error.message}`);
+  }
+  try {
+    if (await saveSnapshot("flights_latest", snapshot)) console.log("Saved flights_latest to Supabase.");
+  } catch (error) {
+    console.error(`Supabase flight snapshot save failed: ${error.message}`);
   }
 }
 
 async function readLatestFlightResults() {
+  try {
+    const remoteSnapshot = await readSnapshot("flights_latest");
+    if (remoteSnapshot) return remoteSnapshot;
+  } catch (error) {
+    console.error(`Supabase flight snapshot read failed: ${error.message}`);
+  }
   try {
     return JSON.parse(await fs.readFile(latestResultsPath, "utf8"));
   } catch {
