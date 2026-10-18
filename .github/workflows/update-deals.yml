@@ -1,0 +1,50 @@
+name: Update today's deals
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub Actions uses UTC: 09:00, 17:00, and 01:00 KST.
+    - cron: "0 0,8,16 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-deals
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Crawl today's deals
+        run: node crawler/update-snapshot.mjs
+
+      - name: Commit updated snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/deals.json
+          if git diff --cached --quiet; then
+            echo "No deal changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: update today's deals"
+          git push
