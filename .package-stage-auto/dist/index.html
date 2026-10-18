@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#11171f" />
+    <meta name="description" content="민호의 일본땡처리 — 인천 출발 일본 특가 항공권 지도와 오늘의 땡처리." />
+    <title>민호의 일본땡처리</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#map"><span class="brand-mark">✈</span><span><small>민호의</small><strong>일본땡처리</strong></span></a>
+      <div class="header-status"><i></i> 오늘의 특가 수집 완료 <span>·</span> 인천 출발</div>
+    </header>
+
+    <main>
+      <section class="map-section" id="map">
+        <div class="section-intro">
+          <div>
+            <p class="eyebrow"><span></span> JAPAN DEAL MAP</p>
+            <h1>어디로 갈지,<br /><em>지도에서</em> 골라요</h1>
+            <p class="intro-copy">일본 26개 도시의 위치를 정확하게 표시했어요.<br />마커를 누르면 도시 정보와 오늘의 특가를 확인할 수 있어요.</p>
+          </div>
+          <div class="map-summary"><strong id="mapDealCount">오늘의 특가</strong><span>인천 출발 · 30만원 미만</span></div>
+        </div>
+        <div class="city-picker" aria-label="일본 도시 바로가기">
+          <div class="city-picker-header"><div><span class="city-picker-kicker">CITY SHORTCUTS</span><strong>도시 바로가기</strong></div><div class="city-picker-header-actions"><span><b class="city-picker-legend">★ 대도시</b> · 도시를 고르면 지도와 특가가 함께 열려요</span><button id="allFlightSearch" class="all-flight-search" type="button">빠른 전체 검색</button><button id="fullFlightSearch" class="all-flight-search full-flight-search" type="button">정밀 검색</button></div></div>
+          <div id="cityPicker" class="city-picker-grid"></div>
+        </div>
+        <div class="map-frame">
+          <div class="map-toolbar"><span>JAPAN / CITY LOCATOR</span><span class="map-toolbar-actions"><span class="map-live"><i></i> LIVE</span><button id="resetMap" class="map-reset" type="button">↗ 일본 전체 지도</button></span></div>
+          <div id="japanMap" class="leaflet-map" aria-label="일본 26개 도시 특가 지도"></div>
+          <aside id="cityDealsPanel" class="city-deals-panel" aria-live="polite" aria-label="선택한 도시의 항공권 정보"></aside>
+          <div class="map-footer"><span>마커를 누르면 OSM 도시 위치와 특가를 볼 수 있어요.</span><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a></div>
+        </div>
+      </section>
+
+      <section class="deals-section live-flights-section" id="liveFlights">
+        <div class="deals-heading"><div><p class="eyebrow"><span></span> LIVE FLIGHTS</p><h2>실시간 항공권 정보</h2></div><span class="deals-rule"></span><div class="deals-heading-actions"><p class="deals-caption" id="liveFlightsStatus">빠른 검색 결과가 여기에 표시됩니다</p><button id="liveFlightsSearch" class="deals-refresh" type="button">빠른 전체 검색</button><button id="liveFlightsFullSearch" class="deals-refresh full-flight-search" type="button">정밀 전체 검색</button></div></div>
+        <div class="live-flight-filters" aria-label="실시간 항공권 필터"><label>도시 <select id="liveCityFilter"><option value="all">전체 도시</option></select></label><label>항공사 <select id="liveAirlineFilter"><option value="all">전체 항공사</option></select></label><span id="liveFlightCount">0개 항공권</span></div>
+        <div class="live-flight-list" id="liveFlightList"><div class="empty-state">위의 전체 도시 가져오기를 누르면 네이버 항공권 검색 결과가 최저가순으로 표시됩니다.</div></div>
+      </section>
+
+      <section class="deals-section" id="deals">
+        <div class="deals-heading"><div><p class="eyebrow"><span></span> TODAY'S DEALS</p><h2>오늘의 땡처리</h2></div><span class="deals-rule"></span><div class="deals-heading-actions"><p class="deals-caption">인천 출발 기준, 30만원 미만</p><button id="refreshDeals" class="deals-refresh" type="button">↻ 업데이트</button></div></div>
+        <div class="source-filters" aria-label="항공권 사이트별 필터">
+          <div class="source-filters-heading"><span>SOURCE FILTERS</span><small>사이트별 특가 모아보기</small></div>
+          <div id="sourceFilters" class="source-filter-list"></div>
+        </div>
+        <div class="deal-list" id="dealList"><div class="loading-state">오늘의 특가를 불러오는 중이에요…</div></div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><span>민호의 일본땡처리</span><span>가격과 좌석은 예약 시점에 달라질 수 있습니다.</span></footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
