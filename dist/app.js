@@ -195,12 +195,12 @@ function openAllCitySearchPanel() {
     <div id="allCityFlightResults" class="city-flight-results"></div>`;
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
-  panel.querySelector("#allCityFlightSearch").addEventListener("click", runAllCityFlightSearch);
+  panel.querySelector("#allCityFlightSearch").addEventListener("click", () => runAllCityFlightSearch());
   if (japanMap && japanBounds.length) japanMap.fitBounds(japanBounds, { padding: [20, 20], duration: 0.8 });
   runAllCityFlightSearch();
 }
 
-async function runAllCityFlightSearch() {
+async function runAllCityFlightSearch(existingJob = null) {
   const panel = document.querySelector("#cityDealsPanel");
   const buttons = [...new Set([...document.querySelectorAll("#allFlightSearch, #allCityFlightSearch, #liveFlightsSearch")])];
   const resultBoxes = [...new Set([...document.querySelectorAll("#allCityFlightResults, #liveFlightList")])];
@@ -214,21 +214,28 @@ async function runAllCityFlightSearch() {
   resultBoxes.forEach((resultBox) => {
     resultBox.innerHTML = '<div class="automation-loading">전체 도시 검색을 준비하고 있어요…</div>';
   });
-  let workerConnected = false;
+  let workerConnected = Boolean(existingJob);
 
   try {
     const baseUrl = getAutomationUrl();
-    const createResponse = await fetch(`${baseUrl}/api/search-all`, { method: "POST" });
-    const created = await createResponse.json();
-    if (!createResponse.ok) throw new Error(created.error || "전체 도시 검색을 시작하지 못했습니다.");
-    workerConnected = true;
+    let job = existingJob;
+    let jobId = existingJob?.id;
+    if (!job) {
+      const createResponse = await fetch(`${baseUrl}/api/search-all`, { method: "POST" });
+      const created = await createResponse.json();
+      if (!createResponse.ok) throw new Error(created.error || "전체 도시 검색을 시작하지 못했습니다.");
+      workerConnected = true;
+      job = created;
+      jobId = created.jobId;
+    } else if (job.results?.length) {
+      renderAllFlightResults(job);
+    }
 
-    let job = created;
     while (job.status === "queued" || job.status === "running") {
       if (job.progress) setAllFlightStatus(`${job.progress.cityIndex}/${job.progress.totalCities} 도시 · ${job.progress.city} · ${job.progress.current}/${job.progress.total}개 일정`);
       if (job.results?.length) renderAllFlightResults(job);
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      const jobResponse = await fetch(`${baseUrl}/api/jobs/${created.jobId}`);
+      const jobResponse = await fetch(`${baseUrl}/api/jobs/${jobId}`);
       job = await jobResponse.json();
       if (!jobResponse.ok) throw new Error(job.error || "전체 도시 검색 상태를 확인하지 못했습니다.");
     }
@@ -246,6 +253,27 @@ async function runAllCityFlightSearch() {
       button.disabled = false;
       button.textContent = button.id === "liveFlightsSearch" ? "전체 도시 다시 가져오기" : button.id === "allCityFlightSearch" ? "다시 전체 검색" : "전체 도시 가져오기";
     });
+  }
+}
+
+async function resumeAllCityFlightSearch() {
+  try {
+    const baseUrl = getAutomationUrl();
+    const response = await fetch(`${baseUrl}/api/jobs/active`);
+    if (!response.ok) return;
+    const payload = await response.json();
+    const job = payload.job;
+    if (!job || job.type !== "all-cities") return;
+    if (payload.active && (job.status === "queued" || job.status === "running")) {
+      await runAllCityFlightSearch(job);
+      return;
+    }
+    if (job.status === "succeeded") {
+      setAllFlightStatus(`${groupFlightResults(job.results).length}개 항공권을 최저가순으로 정리했습니다. 중복 운항 정보는 묶었습니다.`);
+      renderAllFlightResults(job);
+    }
+  } catch (error) {
+    console.info("진행 중인 전체 도시 검색을 복원하지 못했습니다.", error.message);
   }
 }
 
@@ -507,8 +535,9 @@ async function refreshTodayDeals() {
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
 document.querySelector("#refreshDeals").addEventListener("click", refreshTodayDeals);
 document.querySelector("#allFlightSearch").addEventListener("click", openAllCitySearchPanel);
-document.querySelector("#liveFlightsSearch").addEventListener("click", runAllCityFlightSearch);
+document.querySelector("#liveFlightsSearch").addEventListener("click", () => runAllCityFlightSearch());
 renderCityPicker();
 renderSourceFilters();
 setupMap();
 loadDeals();
+resumeAllCityFlightSearch();

@@ -78,6 +78,12 @@ function createAllCitiesJob() {
   return job;
 }
 
+function latestAllCitiesJob() {
+  return [...jobs.values()]
+    .filter((job) => job.type === "all-cities")
+    .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))[0] || null;
+}
+
 async function runJob(job) {
   runningJobId = job.id;
   job.status = "running";
@@ -154,6 +160,11 @@ function runDealsRefresh() {
 const server = http.createServer(async (request, response) => {
   if (request.method === "OPTIONS") return sendJson(response, 204, {});
   if (request.method === "GET" && request.url === "/health") return sendJson(response, 200, { ok: true, runningJobId });
+  if (request.method === "GET" && request.url === "/api/jobs/active") {
+    const runningJob = runningJobId ? jobs.get(runningJobId) : null;
+    const job = runningJob || latestAllCitiesJob();
+    return sendJson(response, 200, { active: Boolean(runningJob), job });
+  }
   if (request.method === "POST" && request.url === "/api/search") {
     try {
       const body = await readBody(request);
