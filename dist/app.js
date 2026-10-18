@@ -27,8 +27,14 @@ const cities = [
   { name: "이시가키", code: "ISG", lat: 24.3444441, lon: 124.1851857, major: true, osm: "https://www.openstreetmap.org/search?query=Ishigaki%2C%20Okinawa%2C%20Japan" },
 ];
 
+// 새 크롤링 사이트를 추가할 때 이 목록에 소스만 하나씩 등록하면 필터에 자동으로 표시됩니다.
+const dealSources = [
+  { id: "ttang", label: "땡처리닷컴", url: "https://www.ttang.com/ttangair/search/ttang/list.do?arr0=A7ALL" },
+];
+
 let toastTimer;
 let todayDeals = [];
+let activeSource = "all";
 let japanMap = null;
 let japanBounds = [];
 let selectedCity = null;
@@ -50,6 +56,45 @@ function formatPeriod(deal) {
   return `${deal.fromDate} — ${deal.toDate}`;
 }
 
+function getDealSourceId(deal) {
+  if (deal.sourceId) return deal.sourceId;
+  if (deal.sourceUrl?.includes("ttang.com")) return "ttang";
+  return "unknown";
+}
+
+function getDealSourceLabel(deal) {
+  return dealSources.find((source) => source.id === getDealSourceId(deal))?.label || deal.sourceName || "기타 사이트";
+}
+
+function getVisibleDeals() {
+  return activeSource === "all" ? todayDeals : todayDeals.filter((deal) => getDealSourceId(deal) === activeSource);
+}
+
+function renderSourceFilters() {
+  const container = document.querySelector("#sourceFilters");
+  if (!container) return;
+  const buttons = [
+    { id: "all", label: "ALL", count: todayDeals.length },
+    ...dealSources.map((source) => ({
+      id: source.id,
+      label: source.label,
+      count: todayDeals.filter((deal) => getDealSourceId(deal) === source.id).length,
+    })),
+  ];
+  container.innerHTML = buttons.map((source) => `
+    <button class="source-filter${activeSource === source.id ? " active" : ""}" type="button" data-source="${source.id}">
+      <span>${source.label}</span><small>${source.count}개</small>
+    </button>`).join("");
+  container.querySelectorAll(".source-filter").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeSource = button.dataset.source;
+      renderSourceFilters();
+      renderDeals(getVisibleDeals());
+      if (selectedCity) showCityDeals(selectedCity);
+    });
+  });
+}
+
 function renderDeals(deals) {
   const list = document.querySelector("#dealList");
   document.querySelector("#mapDealCount").textContent = `오늘의 특가 ${deals.length}개`;
@@ -59,7 +104,7 @@ function renderDeals(deals) {
   }
   list.innerHTML = deals.map((deal) => `
     <article class="deal-card" data-arrival="${deal.arrivalCode}">
-      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub">${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p></div>
+      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub"><span class="deal-source-tag">${getDealSourceLabel(deal)}</span> ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p></div>
       <strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong>
       <a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a>
     </article>`).join("");
@@ -68,7 +113,7 @@ function renderDeals(deals) {
 function showCityDeals(city) {
   selectedCity = city;
   const panel = document.querySelector("#cityDealsPanel");
-  const matches = todayDeals.filter((deal) => deal.arrivalCode === city.code);
+  const matches = getVisibleDeals().filter((deal) => deal.arrivalCode === city.code);
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
   document.querySelectorAll(".city-choice").forEach((button) => button.classList.toggle("active", button.dataset.code === city.code));
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
@@ -139,7 +184,8 @@ async function loadDeals() {
     if (!response.ok) throw new Error(`deals.json HTTP ${response.status}`);
     const payload = await response.json();
     todayDeals = Array.isArray(payload.deals) ? payload.deals : [];
-    renderDeals(todayDeals);
+    renderSourceFilters();
+    renderDeals(getVisibleDeals());
     if (selectedCity) showCityDeals(selectedCity);
   } catch (error) {
     console.warn("오늘의 특가를 불러오지 못했습니다.", error);
@@ -150,5 +196,6 @@ async function loadDeals() {
 
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
 renderCityPicker();
+renderSourceFilters();
 setupMap();
 loadDeals();

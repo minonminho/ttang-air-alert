@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 
 const DEFAULT_LIST_URL = "https://www.ttang.com/ttangair/search/ttang/list.do?arr0=A7ALL";
 const DEFAULT_MAX_PRICE = 300000;
+export const SOURCE_ID = "ttang";
+export const SOURCE_NAME = "땡처리닷컴";
 
 function decodeHtml(value = "") {
   return value
@@ -69,6 +71,8 @@ function parseRow(row, baseUrl, checkInDate) {
   const airlineCell = cells[2] ?? "";
 
   return {
+    sourceId: SOURCE_ID,
+    sourceName: SOURCE_NAME,
     departure: textFromHtml(cells[0] ?? ""),
     departureCode: attribute(anchor, "data-depCity"),
     arrival: textFromHtml(cells[1] ?? ""),
