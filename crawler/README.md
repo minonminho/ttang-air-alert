@@ -12,6 +12,12 @@ node .\crawler\ttangair-crawler.mjs
 node .\crawler\modetour-crawler.mjs
 ```
 
+하나투어는 공식 땡처리 항공권 페이지의 인천/김포 출발 목록에서 인천(ICN) 출발 항공권을 수집합니다.
+
+```powershell
+node .\crawler\hanatour-crawler.mjs
+```
+
 대시보드에 표시되는 스냅샷을 최신 데이터로 갱신하려면 다음 명령을 실행합니다.
 
 ```powershell
@@ -20,7 +26,7 @@ node .\crawler\update-snapshot.mjs
 
 운영 환경에서는 이 갱신 명령을 별도 Node 실행 환경에서 09:00·15:00·21:00(KST)에 실행하고, `dist/deals.json` 대신 D1이나 별도 API 저장소에 기록하는 방식으로 전환하면 됩니다.
 
-`update-snapshot.mjs`는 현재 땡처리닷컴과 모두투어를 함께 수집해 사이트별 `sourceId`와 `sourceName`을 포함한 하나의 스냅샷을 만듭니다.
+`update-snapshot.mjs`는 현재 땡처리닷컴, 모두투어, 하나투어를 함께 수집해 사이트별 `sourceId`와 `sourceName`을 포함한 하나의 스냅샷을 만듭니다.
 
 현재 수집기는 다음 값을 반환합니다.
 
@@ -32,6 +38,6 @@ node .\crawler\update-snapshot.mjs
 - 예약 진입 링크
 - 원본 목록 URL
 
-땡처리닷컴 예약 버튼의 실제 `href`는 `#none`이고 사이트 JS가 `ttang_inwon.do` 인원 선택 창을 만들기 때문에, `reservationUrl`은 그 동작을 재현한 예약 진입 링크입니다. 모두투어는 `stockPackageNo`를 사용하는 예약 페이지 링크를 생성합니다.
+땡처리닷컴 예약 버튼의 실제 `href`는 `#none`이고 사이트 JS가 `ttang_inwon.do` 인원 선택 창을 만들기 때문에, `reservationUrl`은 그 동작을 재현한 예약 진입 링크입니다. 모두투어는 `stockPackageNo`를 사용하는 예약 페이지 링크를 생성하고, 하나투어는 `fareId`를 포함한 항공권 상세 링크를 생성합니다.
 
 운영에 넣기 전에는 요청 주기·동시성·재시도 횟수를 낮게 유지하고, 사이트 이용약관과 robots 정책을 확인해야 합니다. 가격 데이터는 판매처에서 변경될 수 있으므로 알림 발송 전 재확인 단계가 필요합니다.

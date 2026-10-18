@@ -31,6 +31,7 @@ const cities = [
 const dealSources = [
   { id: "ttang", label: "땡처리닷컴", url: "https://www.ttang.com/ttangair/search/ttang/list.do?arr0=A7ALL" },
   { id: "modetour", label: "모두투어", url: "https://www.modetour.com/flights/discount-flight" },
+  { id: "hanatour", label: "하나투어", url: "https://www.hanatour.com/trp/air/CHPC0AIR0233M200" },
 ];
 
 let toastTimer;
