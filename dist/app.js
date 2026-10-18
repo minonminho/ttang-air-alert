@@ -58,7 +58,9 @@ function escapeHtml(value) {
 
 function getAutomationUrl() {
   const queryUrl = new URLSearchParams(window.location.search).get("worker");
-  return String(queryUrl || window.TTANG_AUTOMATION_URL || localStorage.getItem("ttangAutomationUrl") || "http://127.0.0.1:8787").replace(/\/$/, "");
+  const savedUrl = localStorage.getItem("ttangAutomationUrl");
+  const localPage = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  return String(queryUrl || window.TTANG_AUTOMATION_URL || savedUrl || (localPage ? window.location.origin : "http://127.0.0.1:8787")).replace(/\/$/, "");
 }
 
 function renderAutomationResults(job, container) {
@@ -84,6 +86,7 @@ async function runCityFlightSearch(city) {
   button.textContent = "검색 중…";
   status.textContent = "네이버 항공권에서 일정별 최저가를 확인하고 있어요.";
   resultBox.innerHTML = '<div class="automation-loading">검색 작업을 준비하고 있어요…</div>';
+  let workerConnected = false;
 
   try {
     const baseUrl = getAutomationUrl();
@@ -94,6 +97,7 @@ async function runCityFlightSearch(city) {
     });
     const created = await createResponse.json();
     if (!createResponse.ok) throw new Error(created.error || "검색 작업을 시작하지 못했습니다.");
+    workerConnected = true;
 
     let job = created;
     while (job.status === "queued" || job.status === "running") {
@@ -108,8 +112,8 @@ async function runCityFlightSearch(city) {
     status.textContent = `${job.searchedTrips}개 일정 검색 완료 · 기간별 최저가 3개를 표시합니다.`;
     renderAutomationResults(job, resultBox);
   } catch (error) {
-    status.textContent = "자동화 워커에 연결하지 못했습니다.";
-    resultBox.innerHTML = `<div class="automation-error">${escapeHtml(error.message)}<br /><small>Playwright 워커가 실행 중인지 확인해 주세요.</small></div>`;
+    status.textContent = workerConnected ? "워커는 연결됐지만 검색 결과를 받지 못했습니다." : "자동화 워커에 연결하지 못했습니다.";
+    resultBox.innerHTML = `<div class="automation-error">${escapeHtml(error.message)}<br /><small>${workerConnected ? "잠시 후 다시 시도해 주세요." : "Playwright 워커가 실행 중인지 확인해 주세요."}</small></div>`;
     showToast(error.message);
   } finally {
     button.disabled = false;

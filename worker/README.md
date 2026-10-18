@@ -10,6 +10,8 @@ npx playwright install chromium
 npm run automation
 ```
 
+그 다음 브라우저에서 `http://127.0.0.1:8787/`를 열면 사이트와 워커가 같은 주소에서 실행됩니다. 운영 사이트의 HTTPS 페이지에서 로컬 HTTP 워커를 호출하면 브라우저 보안 정책에 막힐 수 있으므로, 로컬 테스트는 이 주소를 사용합니다.
+
 도시 선택 요청:
 
 ```powershell

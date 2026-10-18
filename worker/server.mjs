@@ -1,11 +1,21 @@
 import http from "node:http";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { searchNaver, DESTINATIONS } from "./naver-playwright.mjs";
 
 const port = Number(process.env.TTANG_AUTOMATION_PORT || 8787);
 const host = process.env.TTANG_AUTOMATION_HOST || "127.0.0.1";
 const jobs = new Map();
 let runningJobId = null;
+const staticRoot = path.resolve(process.cwd(), "dist");
+const staticFiles = {
+  "/": ["index.html", "text/html; charset=utf-8"],
+  "/index.html": ["index.html", "text/html; charset=utf-8"],
+  "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+  "/styles.css": ["styles.css", "text/css; charset=utf-8"],
+  "/deals.json": ["deals.json", "application/json; charset=utf-8"],
+};
 
 function sendJson(response, status, body) {
   response.writeHead(status, {
@@ -26,6 +36,20 @@ function readBody(request) {
     });
     request.on("error", reject);
   });
+}
+
+async function serveStatic(request, response) {
+  const file = staticFiles[new URL(request.url, "http://localhost").pathname];
+  if (!file) return false;
+  try {
+    const content = await fs.readFile(path.join(staticRoot, file[0]));
+    response.writeHead(200, { "content-type": file[1] });
+    response.end(content);
+  } catch {
+    response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+  }
+  return true;
 }
 
 function createJob(destinationCode) {
@@ -78,6 +102,7 @@ const server = http.createServer(async (request, response) => {
     const job = jobs.get(match[1]);
     return job ? sendJson(response, 200, job) : sendJson(response, 404, { error: "검색 작업을 찾을 수 없습니다." });
   }
+  if (request.method === "GET" && await serveStatic(request, response)) return;
   return sendJson(response, 404, { error: "Not found" });
 });
 
