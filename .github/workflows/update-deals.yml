@@ -2,6 +2,15 @@ name: Update today's deals
 
 on:
   workflow_dispatch:
+    inputs:
+      flight_search_mode:
+        description: "네이버 항공권 검색 범위"
+        required: true
+        default: quick
+        type: choice
+        options:
+          - quick
+          - full
   schedule:
     # GitHub Actions uses UTC: 01:00 KST is 16:00 UTC on the previous day.
     - cron: "0 16 * * *"
@@ -16,10 +25,11 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 360
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      FLIGHT_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.flight_search_mode || 'quick' }}
 
     steps:
       - name: Check out repository
@@ -39,6 +49,9 @@ jobs:
 
       - name: Crawl today's deals
         run: node crawler/update-snapshot.mjs
+
+      - name: Search Naver flights for all 26 cities
+        run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE"
 
       - name: Commit updated snapshot
         run: |
