@@ -1,6 +1,9 @@
 name: Update today's deals
 
 on:
+  push:
+    paths:
+      - ".github/automation-now.trigger"
   workflow_dispatch:
     inputs:
       flight_search_mode:
