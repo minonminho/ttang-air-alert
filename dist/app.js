@@ -30,6 +30,7 @@ const cities = [
 // 새 크롤링 사이트를 추가할 때 이 목록에 소스만 하나씩 등록하면 필터에 자동으로 표시됩니다.
 const dealSources = [
   { id: "ttang", label: "땡처리닷컴", url: "https://www.ttang.com/ttangair/search/ttang/list.do?arr0=A7ALL" },
+  { id: "modetour", label: "모두투어", url: "https://www.modetour.com/flights/discount-flight" },
 ];
 
 let toastTimer;
