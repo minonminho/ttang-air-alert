@@ -41,10 +41,13 @@ function addDays(date, days) {
 }
 
 function includesWeekend(start, end) {
+  let hasSaturday = false;
+  let hasSunday = false;
   for (let cursor = new Date(start); cursor <= end; cursor = addDays(cursor, 1)) {
-    if (cursor.getDay() === 0 || cursor.getDay() === 6) return true;
+    if (cursor.getDay() === 6) hasSaturday = true;
+    if (cursor.getDay() === 0) hasSunday = true;
   }
-  return false;
+  return hasSaturday && hasSunday;
 }
 
 export function makeSearchUrl(destinationCode, departureDate, returnDate) {
@@ -65,7 +68,7 @@ export function makeCandidateTrips({ startDate = new Date(), months = 3 } = {}) 
 
   for (let departure = new Date(start); departure <= end; departure = addDays(departure, 1)) {
     for (const tripDays of TRIP_DAYS) {
-      const returnDate = addDays(departure, tripDays);
+      const returnDate = addDays(departure, tripDays - 1);
       if (returnDate <= end && includesWeekend(departure, returnDate)) {
         trips.push({
           departureDate: dateKey(departure),
