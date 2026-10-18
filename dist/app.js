@@ -68,6 +68,16 @@ function getAutomationUrl() {
   return String(queryUrl || window.TTANG_AUTOMATION_URL || savedUrl || (localPage ? window.location.origin : "http://127.0.0.1:8787")).replace(/\/$/, "");
 }
 
+const PUBLISHED_DATA_ROOT = "https://raw.githubusercontent.com/minonminho/ttang-air-alert/main/dist";
+
+function isLocalPage() {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname);
+}
+
+function getPublishedDataUrl(fileName) {
+  return isLocalPage() ? `./${fileName}?ts=${Date.now()}` : `${PUBLISHED_DATA_ROOT}/${fileName}?ts=${Date.now()}`;
+}
+
 function renderAutomationResults(job, container) {
   const groups = new Map();
   for (const result of job.results || []) {
@@ -329,7 +339,7 @@ async function runAllCityFlightSearch(mode = "quick", existingJob = null) {
 }
 
 async function loadLatestAllCityResults(baseUrl) {
-  const response = await fetch(`${baseUrl}/api/flights/latest`);
+  const response = await fetch(isLocalPage() ? `${baseUrl}/api/flights/latest` : getPublishedDataUrl("flight-results.json"), { cache: "no-store" });
   if (!response.ok) return null;
   const snapshot = await response.json();
   if (Array.isArray(snapshot.results) && snapshot.results.length) renderAllFlightResults(snapshot);
@@ -345,6 +355,7 @@ async function resumeAllCityFlightSearch() {
   try {
     const baseUrl = getAutomationUrl();
     await loadLatestAllCityResults(baseUrl);
+    if (!isLocalPage()) return;
     const response = await fetch(`${baseUrl}/api/jobs/active`);
     if (!response.ok) return;
     const payload = await response.json();
@@ -576,7 +587,7 @@ function setupMap() {
 
 async function loadDeals() {
   try {
-    const response = await fetch(`./deals.json?ts=${Date.now()}`, { cache: "no-store" });
+    const response = await fetch(getPublishedDataUrl("deals.json"), { cache: "no-store" });
     if (!response.ok) throw new Error(`deals.json HTTP ${response.status}`);
     const payload = await response.json();
     todayDeals = Array.isArray(payload.deals) ? payload.deals : [];

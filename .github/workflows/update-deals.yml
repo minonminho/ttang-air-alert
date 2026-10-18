@@ -52,3 +52,31 @@ jobs:
 
       - name: Search Naver flights for all 26 cities
         run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE"
+
+      - name: Prepare published flight snapshot
+        run: cp worker/data/latest-flight-results.json dist/flight-results.json
+
+      - name: Publish snapshots to repository
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/deals.json dist/flight-results.json
+          if git diff --cached --quiet; then
+            echo "No snapshot changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: publish latest flight snapshots"
+          git fetch origin main
+          if ! git rebase origin/main; then
+            conflicts=$(git diff --name-only --diff-filter=U)
+            if [ "$conflicts" = "dist/deals.json"$'\n'"dist/flight-results.json" ] || [ "$conflicts" = "dist/flight-results.json"$'\n'"dist/deals.json" ]; then
+              git checkout --theirs dist/deals.json dist/flight-results.json
+              git add dist/deals.json dist/flight-results.json
+              GIT_EDITOR=true git rebase --continue
+            else
+              git rebase --abort
+              exit 1
+            fi
+          fi
+          git push origin HEAD:main
