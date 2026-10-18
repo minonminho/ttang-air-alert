@@ -57,7 +57,8 @@ function escapeHtml(value) {
 }
 
 function getAutomationUrl() {
-  return String(window.TTANG_AUTOMATION_URL || "http://127.0.0.1:8787").replace(/\/$/, "");
+  const queryUrl = new URLSearchParams(window.location.search).get("worker");
+  return String(queryUrl || window.TTANG_AUTOMATION_URL || localStorage.getItem("ttangAutomationUrl") || "http://127.0.0.1:8787").replace(/\/$/, "");
 }
 
 function renderAutomationResults(job, container) {
