@@ -3,7 +3,7 @@ import { chromium } from "playwright";
 const NAVER_BASE_URL = "https://flight.naver.com";
 const DEPARTURE_CODE = "ICN";
 const TRIP_DAYS = [3, 4, 5, 6];
-const TOP_RESULTS = 3;
+const TOP_RESULTS = 5;
 const DEFAULT_SEARCH_DELAY_MS = 1500;
 
 export const DESTINATIONS = new Map([
@@ -87,6 +87,16 @@ function parsePrices(text) {
     .filter((price) => price > 0 && price < 10000000);
 }
 
+function normalizeFlightOperation(value) {
+  return String(value ?? "")
+    .replace(/[0-9]{1,3}(?:,[0-9]{3})+\s*원/g, "")
+    .replace(/\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b/g, "")
+    .replace(/\b\d{1,2}[./-]\d{1,2}\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function failureFromPage(text) {
   const normalized = String(text).replace(/\s+/g, " ");
   if (/서비스가 불안정|일시적인 오류|잠시 후 다시 접속|접근이 제한|자동화|captcha|robot/i.test(normalized)) {
@@ -126,16 +136,17 @@ async function readFlightOptions(page, searchUrl) {
   for (const option of options) {
     const price = parsePrices(option.text)[0];
     if (!price) continue;
-    const key = `${price}|${option.text.slice(0, 140)}`;
+    const operationKey = normalizeFlightOperation(option.text);
+    const key = `${price}|${operationKey}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    parsed.push({ price, label: option.text.slice(0, 180), url: option.link || searchUrl });
+    parsed.push({ price, label: option.text.slice(0, 180), operationKey, url: option.link || searchUrl });
   }
 
   if (!parsed.length) {
     const fallbackPrices = [...new Set(parsePrices(text))].sort((a, b) => a - b).slice(0, TOP_RESULTS);
     if (!fallbackPrices.length) throw new Error("네이버 항공권 가격 정보를 읽지 못했습니다.");
-    return fallbackPrices.map((price) => ({ price, label: "네이버 항공권 검색 결과", url: searchUrl }));
+    return fallbackPrices.map((price) => ({ price, label: "네이버 항공권 검색 결과", operationKey: "네이버 항공권 검색 결과", url: searchUrl }));
   }
   return parsed.sort((left, right) => left.price - right.price).slice(0, TOP_RESULTS);
 }

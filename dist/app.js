@@ -108,7 +108,7 @@ async function runCityFlightSearch(city) {
     }
 
     if (job.status !== "succeeded") throw new Error(job.error || "항공권 검색이 중단되었습니다.");
-    status.textContent = `${job.searchedTrips}개 일정 검색 완료 · 기간별 최저가 3개를 표시합니다.`;
+    status.textContent = `${job.searchedTrips}개 일정 검색 완료 · 기간별 최저가 5개를 표시합니다.`;
     renderAutomationResults(job, resultBox);
   } catch (error) {
     status.textContent = workerConnected ? "워커는 연결됐지만 검색 결과를 받지 못했습니다." : "자동화 워커에 연결하지 못했습니다.";
@@ -120,20 +120,67 @@ async function runCityFlightSearch(city) {
   }
 }
 
-function renderAllAutomationResults(job, container) {
+function normalizeFlightOperation(value) {
+  return String(value ?? "")
+    .replace(/[0-9]{1,3}(?:,[0-9]{3})+\s*원/g, "")
+    .replace(/\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b/g, "")
+    .replace(/\b\d{1,2}[./-]\d{1,2}\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function groupFlightResults(results = []) {
   const groups = new Map();
-  for (const result of job.results || []) {
-    const items = groups.get(result.destinationCode) || [];
-    items.push(result);
-    groups.set(result.destinationCode, items);
+  for (const result of results) {
+    const operationKey = result.operationKey || normalizeFlightOperation(result.label);
+    const key = `${result.destinationCode}|${result.price}|${operationKey}`;
+    const group = groups.get(key) || {
+      destination: result.destination,
+      destinationCode: result.destinationCode,
+      price: result.price,
+      label: result.label || "항공권 운항 정보",
+      schedules: [],
+    };
+    const scheduleKey = `${result.departureDate}|${result.returnDate}`;
+    if (!group.schedules.some((schedule) => schedule.key === scheduleKey)) {
+      group.schedules.push({
+        key: scheduleKey,
+        departureDate: result.departureDate,
+        returnDate: result.returnDate,
+        tripDays: result.tripDays,
+        url: result.url,
+      });
+    }
+    groups.set(key, group);
   }
-  const cityOrder = new Map(cities.map((city, index) => [city.code, index]));
-  const sections = [...groups.entries()].sort(([left], [right]) => (cityOrder.get(left) ?? 999) - (cityOrder.get(right) ?? 999)).map(([code, results]) => {
-    const cityName = results[0]?.destination || cities.find((city) => city.code === code)?.name || code;
-    const rows = results.sort((left, right) => left.price - right.price).map((result) => `<a class="automation-result" href="${escapeHtml(result.url)}" target="_blank" rel="noopener"><strong>${formatPrice(result.price)}</strong><span>${result.tripDays}일 · ${formatDealDate(result.departureDate)} ~ ${formatDealDate(result.returnDate)}</span><small>검색 결과 ↗</small></a>`).join("");
-    return `<section class="automation-city"><div class="automation-duration-title"><strong>${escapeHtml(cityName)}</strong><span>${results.length}개</span></div>${rows}</section>`;
-  }).join("");
-  container.innerHTML = sections || '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
+  return [...groups.values()]
+    .map((group) => ({ ...group, schedules: group.schedules.sort((left, right) => String(left.departureDate).localeCompare(String(right.departureDate))) }))
+    .sort((left, right) => left.price - right.price || String(left.destination).localeCompare(String(right.destination), "ko"));
+}
+
+function renderAllAutomationResults(job, container) {
+  const groups = groupFlightResults(job.results || []);
+  container.innerHTML = groups.length ? groups.map((group) => `
+    <article class="live-flight-card">
+      <div class="live-flight-main">
+        <div class="live-flight-meta"><span class="live-flight-city">${escapeHtml(group.destination)} · ${escapeHtml(group.destinationCode)}</span><strong>${formatPrice(group.price)}</strong></div>
+        <p class="live-flight-operation">${escapeHtml(group.label)}</p>
+        <div class="live-flight-schedules">${group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener">${schedule.tripDays}일 · ${formatDealDate(schedule.departureDate)} ~ ${formatDealDate(schedule.returnDate)} ↗</a>`).join("")}</div>
+      </div>
+    </article>`).join("") : '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
+}
+
+function setAllFlightStatus(message) {
+  document.querySelectorAll("#allCityFlightStatus, #liveFlightsStatus").forEach((element) => {
+    element.textContent = message;
+  });
+}
+
+function renderAllFlightResults(job) {
+  document.querySelectorAll("#allCityFlightResults, #liveFlightList").forEach((container) => {
+    renderAllAutomationResults(job, container);
+  });
 }
 
 function openAllCitySearchPanel() {
@@ -155,15 +202,18 @@ function openAllCitySearchPanel() {
 
 async function runAllCityFlightSearch() {
   const panel = document.querySelector("#cityDealsPanel");
-  const button = panel?.querySelector("#allCityFlightSearch");
-  const status = panel?.querySelector("#allCityFlightStatus");
-  const resultBox = panel?.querySelector("#allCityFlightResults");
-  if (!button || !status || !resultBox) return;
+  const buttons = [...new Set([...document.querySelectorAll("#allFlightSearch, #allCityFlightSearch, #liveFlightsSearch")])];
+  const resultBoxes = [...new Set([...document.querySelectorAll("#allCityFlightResults, #liveFlightList")])];
+  if (!buttons.length || !resultBoxes.length) return;
 
-  button.disabled = true;
-  button.textContent = "전체 검색 중…";
-  status.textContent = "26개 도시를 순서대로 검색하고 있어요. 오래 걸릴 수 있어요.";
-  resultBox.innerHTML = '<div class="automation-loading">전체 도시 검색을 준비하고 있어요…</div>';
+  buttons.forEach((button) => {
+    button.disabled = true;
+    button.textContent = "전체 검색 중…";
+  });
+  setAllFlightStatus("26개 도시를 순서대로 검색하고 있어요. 오래 걸릴 수 있어요.");
+  resultBoxes.forEach((resultBox) => {
+    resultBox.innerHTML = '<div class="automation-loading">전체 도시 검색을 준비하고 있어요…</div>';
+  });
   let workerConnected = false;
 
   try {
@@ -175,22 +225,27 @@ async function runAllCityFlightSearch() {
 
     let job = created;
     while (job.status === "queued" || job.status === "running") {
-      if (job.progress) status.textContent = `${job.progress.cityIndex}/${job.progress.totalCities} 도시 · ${job.progress.city} · ${job.progress.current}/${job.progress.total}개 일정`;
+      if (job.progress) setAllFlightStatus(`${job.progress.cityIndex}/${job.progress.totalCities} 도시 · ${job.progress.city} · ${job.progress.current}/${job.progress.total}개 일정`);
+      if (job.results?.length) renderAllFlightResults(job);
       await new Promise((resolve) => setTimeout(resolve, 1500));
       const jobResponse = await fetch(`${baseUrl}/api/jobs/${created.jobId}`);
       job = await jobResponse.json();
       if (!jobResponse.ok) throw new Error(job.error || "전체 도시 검색 상태를 확인하지 못했습니다.");
     }
     if (job.status !== "succeeded") throw new Error(job.error || "전체 도시 검색이 중단되었습니다.");
-    status.textContent = `${job.results.length}개 최저가 결과를 찾았습니다.`;
-    renderAllAutomationResults(job, resultBox);
+    setAllFlightStatus(`${groupFlightResults(job.results).length}개 항공권을 최저가순으로 정리했습니다. 중복 운항 정보는 묶었습니다.`);
+    renderAllFlightResults(job);
   } catch (error) {
-    status.textContent = workerConnected ? "워커는 연결됐지만 전체 검색 결과를 받지 못했습니다." : "자동화 워커에 연결하지 못했습니다.";
-    resultBox.innerHTML = `<div class="automation-error">${escapeHtml(error.message)}<br /><small>${workerConnected ? "잠시 후 다시 시도해 주세요." : "Playwright 워커가 실행 중인지 확인해 주세요."}</small></div>`;
+    setAllFlightStatus(workerConnected ? "워커는 연결됐지만 전체 검색 결과를 받지 못했습니다." : "자동화 워커에 연결하지 못했습니다.");
+    resultBoxes.forEach((resultBox) => {
+      resultBox.innerHTML = `<div class="automation-error">${escapeHtml(error.message)}<br /><small>${workerConnected ? "잠시 후 다시 시도해 주세요." : "Playwright 워커가 실행 중인지 확인해 주세요."}</small></div>`;
+    });
     showToast(error.message);
   } finally {
-    button.disabled = false;
-    button.textContent = "다시 전체 검색";
+    buttons.forEach((button) => {
+      button.disabled = false;
+      button.textContent = button.id === "liveFlightsSearch" ? "전체 도시 다시 가져오기" : button.id === "allCityFlightSearch" ? "다시 전체 검색" : "전체 도시 가져오기";
+    });
   }
 }
 
@@ -452,6 +507,7 @@ async function refreshTodayDeals() {
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
 document.querySelector("#refreshDeals").addEventListener("click", refreshTodayDeals);
 document.querySelector("#allFlightSearch").addEventListener("click", openAllCitySearchPanel);
+document.querySelector("#liveFlightsSearch").addEventListener("click", runAllCityFlightSearch);
 renderCityPicker();
 renderSourceFilters();
 setupMap();
