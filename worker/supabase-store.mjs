@@ -3,8 +3,8 @@ const tableName = "ttang_snapshots";
 function readConfig() {
   return {
     url: String(process.env.SUPABASE_URL || "").replace(/\/+$/, ""),
-    serviceKey: String(process.env.SUPABASE_SERVICE_ROLE_KEY || ""),
-    readKey: String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ""),
+    serviceKey: String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ""),
+    readKey: String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_ANON_KEY || ""),
   };
 }
 
