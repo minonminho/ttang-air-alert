@@ -61,6 +61,23 @@ function createJob(destinationCode) {
   return job;
 }
 
+function createAllCitiesJob() {
+  const id = crypto.randomUUID();
+  const job = {
+    id,
+    type: "all-cities",
+    destinationCode: "ALL",
+    destination: "전체 도시",
+    status: "queued",
+    progress: null,
+    results: [],
+    errors: [],
+    createdAt: new Date().toISOString(),
+  };
+  jobs.set(id, job);
+  return job;
+}
+
 async function runJob(job) {
   runningJobId = job.id;
   job.status = "running";
@@ -75,6 +92,39 @@ async function runJob(job) {
     job.results = result.results;
     job.criteria = result.criteria;
     job.searchedTrips = result.searchedTrips;
+  } catch (error) {
+    job.status = "failed";
+    job.error = error.message;
+  } finally {
+    job.finishedAt = new Date().toISOString();
+    runningJobId = null;
+  }
+}
+
+async function runAllCitiesJob(job) {
+  runningJobId = job.id;
+  job.status = "running";
+  const destinations = [...DESTINATIONS.entries()];
+  try {
+    for (let index = 0; index < destinations.length; index += 1) {
+      const [destinationCode, destination] = destinations[index];
+      try {
+        const headless = process.env.TTANG_HEADLESS == null ? process.platform !== "win32" : process.env.TTANG_HEADLESS !== "false";
+        const result = await searchNaver({
+          destinationCode,
+          headless,
+          onProgress: (progress) => {
+            job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, ...progress };
+          },
+        });
+        job.results.push(...result.results);
+      } catch (error) {
+        job.errors.push({ destinationCode, destination, error: error.message });
+        throw error;
+      }
+    }
+    job.status = "succeeded";
+    job.searchedTrips = job.results.length;
   } catch (error) {
     job.status = "failed";
     job.error = error.message;
@@ -116,6 +166,12 @@ const server = http.createServer(async (request, response) => {
     } catch (error) {
       return sendJson(response, 400, { error: error.message });
     }
+  }
+  if (request.method === "POST" && request.url === "/api/search-all") {
+    if (runningJobId || refreshState.status === "running") return sendJson(response, 409, { error: "이미 다른 업데이트 작업이 진행 중입니다." });
+    const job = createAllCitiesJob();
+    void runAllCitiesJob(job);
+    return sendJson(response, 202, { jobId: job.id, status: job.status, destination: job.destination, totalCities: DESTINATIONS.size });
   }
   const match = request.method === "GET" ? request.url.match(/^\/api\/jobs\/([^/?]+)$/) : null;
   if (match) {

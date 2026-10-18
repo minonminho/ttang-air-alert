@@ -120,6 +120,80 @@ async function runCityFlightSearch(city) {
   }
 }
 
+function renderAllAutomationResults(job, container) {
+  const groups = new Map();
+  for (const result of job.results || []) {
+    const items = groups.get(result.destinationCode) || [];
+    items.push(result);
+    groups.set(result.destinationCode, items);
+  }
+  const cityOrder = new Map(cities.map((city, index) => [city.code, index]));
+  const sections = [...groups.entries()].sort(([left], [right]) => (cityOrder.get(left) ?? 999) - (cityOrder.get(right) ?? 999)).map(([code, results]) => {
+    const cityName = results[0]?.destination || cities.find((city) => city.code === code)?.name || code;
+    const rows = results.sort((left, right) => left.price - right.price).map((result) => `<a class="automation-result" href="${escapeHtml(result.url)}" target="_blank" rel="noopener"><strong>${formatPrice(result.price)}</strong><span>${result.tripDays}일 · ${formatDealDate(result.departureDate)} ~ ${formatDealDate(result.returnDate)}</span><small>검색 결과 ↗</small></a>`).join("");
+    return `<section class="automation-city"><div class="automation-duration-title"><strong>${escapeHtml(cityName)}</strong><span>${results.length}개</span></div>${rows}</section>`;
+  }).join("");
+  container.innerHTML = sections || '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
+}
+
+function openAllCitySearchPanel() {
+  selectedCity = null;
+  document.querySelectorAll(".deal-card").forEach((card) => card.classList.remove("highlight"));
+  document.querySelectorAll(".city-choice").forEach((button) => button.classList.remove("active"));
+  markerByCode.forEach((marker) => marker.getElement()?.classList.remove("active"));
+  const panel = document.querySelector("#cityDealsPanel");
+  panel.innerHTML = `
+    <div class="city-panel-header"><div><p class="city-panel-kicker">ALL CITIES</p><h3 class="city-panel-title">전체 도시 항공권</h3><p class="city-panel-code">네이버 · 26개 도시</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
+    <div class="city-search-action"><button id="allCityFlightSearch" type="button">전체 도시 가져오기</button><span id="allCityFlightStatus">26개 도시 · 순차 검색이라 오래 걸릴 수 있어요</span></div>
+    <div id="allCityFlightResults" class="city-flight-results"></div>`;
+  panel.classList.add("visible");
+  panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
+  panel.querySelector("#allCityFlightSearch").addEventListener("click", runAllCityFlightSearch);
+  if (japanMap && japanBounds.length) japanMap.fitBounds(japanBounds, { padding: [20, 20], duration: 0.8 });
+  runAllCityFlightSearch();
+}
+
+async function runAllCityFlightSearch() {
+  const panel = document.querySelector("#cityDealsPanel");
+  const button = panel?.querySelector("#allCityFlightSearch");
+  const status = panel?.querySelector("#allCityFlightStatus");
+  const resultBox = panel?.querySelector("#allCityFlightResults");
+  if (!button || !status || !resultBox) return;
+
+  button.disabled = true;
+  button.textContent = "전체 검색 중…";
+  status.textContent = "26개 도시를 순서대로 검색하고 있어요. 오래 걸릴 수 있어요.";
+  resultBox.innerHTML = '<div class="automation-loading">전체 도시 검색을 준비하고 있어요…</div>';
+  let workerConnected = false;
+
+  try {
+    const baseUrl = getAutomationUrl();
+    const createResponse = await fetch(`${baseUrl}/api/search-all`, { method: "POST" });
+    const created = await createResponse.json();
+    if (!createResponse.ok) throw new Error(created.error || "전체 도시 검색을 시작하지 못했습니다.");
+    workerConnected = true;
+
+    let job = created;
+    while (job.status === "queued" || job.status === "running") {
+      if (job.progress) status.textContent = `${job.progress.cityIndex}/${job.progress.totalCities} 도시 · ${job.progress.city} · ${job.progress.current}/${job.progress.total}개 일정`;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const jobResponse = await fetch(`${baseUrl}/api/jobs/${created.jobId}`);
+      job = await jobResponse.json();
+      if (!jobResponse.ok) throw new Error(job.error || "전체 도시 검색 상태를 확인하지 못했습니다.");
+    }
+    if (job.status !== "succeeded") throw new Error(job.error || "전체 도시 검색이 중단되었습니다.");
+    status.textContent = `${job.results.length}개 최저가 결과를 찾았습니다.`;
+    renderAllAutomationResults(job, resultBox);
+  } catch (error) {
+    status.textContent = workerConnected ? "워커는 연결됐지만 전체 검색 결과를 받지 못했습니다." : "자동화 워커에 연결하지 못했습니다.";
+    resultBox.innerHTML = `<div class="automation-error">${escapeHtml(error.message)}<br /><small>${workerConnected ? "잠시 후 다시 시도해 주세요." : "Playwright 워커가 실행 중인지 확인해 주세요."}</small></div>`;
+    showToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "다시 전체 검색";
+  }
+}
+
 function formatPrice(price) {
   return `₩${Number(price).toLocaleString("ko-KR")}`;
 }
@@ -377,6 +451,7 @@ async function refreshTodayDeals() {
 
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
 document.querySelector("#refreshDeals").addEventListener("click", refreshTodayDeals);
+document.querySelector("#allFlightSearch").addEventListener("click", openAllCitySearchPanel);
 renderCityPicker();
 renderSourceFilters();
 setupMap();
