@@ -1,2 +1,6 @@
 .package-stage/
 ttang-air-alert.tar.gz
+node_modules/
+worker/.browser-profile/
+worker/data/
+.env

@@ -52,6 +52,70 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+}
+
+function getAutomationUrl() {
+  return String(window.TTANG_AUTOMATION_URL || "http://127.0.0.1:8787").replace(/\/$/, "");
+}
+
+function renderAutomationResults(job, container) {
+  const groups = new Map();
+  for (const result of job.results || []) {
+    const items = groups.get(result.tripDays) || [];
+    items.push(result);
+    groups.set(result.tripDays, items);
+  }
+  const sections = [...groups.entries()].sort(([left], [right]) => left - right).map(([tripDays, results]) => `
+    <section class="automation-duration"><div class="automation-duration-title"><strong>${tripDays}일 일정</strong><span>최저가 ${results.length}개</span></div>${results.map((result) => `<a class="automation-result" href="${escapeHtml(result.url)}" target="_blank" rel="noopener"><strong>${formatPrice(result.price)}</strong><span>${formatDealDate(result.departureDate)} ~ ${formatDealDate(result.returnDate)}</span><small>네이버 검색 결과 ↗</small></a>`).join("")}</section>`).join("");
+  container.innerHTML = sections || '<div class="automation-empty">조건에 맞는 항공권을 찾지 못했어요.</div>';
+}
+
+async function runCityFlightSearch(city) {
+  const panel = document.querySelector("#cityDealsPanel");
+  const button = panel?.querySelector("#cityFlightSearch");
+  const status = panel?.querySelector("#cityFlightStatus");
+  const resultBox = panel?.querySelector("#cityFlightResults");
+  if (!button || !status || !resultBox) return;
+
+  button.disabled = true;
+  button.textContent = "검색 중…";
+  status.textContent = "네이버 항공권에서 일정별 최저가를 확인하고 있어요.";
+  resultBox.innerHTML = '<div class="automation-loading">검색 작업을 준비하고 있어요…</div>';
+
+  try {
+    const baseUrl = getAutomationUrl();
+    const createResponse = await fetch(`${baseUrl}/api/search`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ city: city.code }),
+    });
+    const created = await createResponse.json();
+    if (!createResponse.ok) throw new Error(created.error || "검색 작업을 시작하지 못했습니다.");
+
+    let job = created;
+    while (job.status === "queued" || job.status === "running") {
+      if (job.progress) status.textContent = `${job.progress.current}/${job.progress.total}개 일정 검색 중…`;
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const jobResponse = await fetch(`${baseUrl}/api/jobs/${created.jobId}`);
+      job = await jobResponse.json();
+      if (!jobResponse.ok) throw new Error(job.error || "검색 상태를 확인하지 못했습니다.");
+    }
+
+    if (job.status !== "succeeded") throw new Error(job.error || "항공권 검색이 중단되었습니다.");
+    status.textContent = `${job.searchedTrips}개 일정 검색 완료 · 기간별 최저가 3개를 표시합니다.`;
+    renderAutomationResults(job, resultBox);
+  } catch (error) {
+    status.textContent = "자동화 워커에 연결하지 못했습니다.";
+    resultBox.innerHTML = `<div class="automation-error">${escapeHtml(error.message)}<br /><small>Playwright 워커가 실행 중인지 확인해 주세요.</small></div>`;
+    showToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "다시 가져오기";
+  }
+}
+
 function formatPrice(price) {
   return `₩${Number(price).toLocaleString("ko-KR")}`;
 }
@@ -201,10 +265,13 @@ function showCityDeals(city) {
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
   panel.innerHTML = `
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
+    <div class="city-search-action"><button id="cityFlightSearch" type="button">항공권 정보 가져오기</button><span id="cityFlightStatus">네이버 · 주말 포함 3·4·5·6일 일정</span></div>
+    <div id="cityFlightResults" class="city-flight-results"></div>
     <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
+  panel.querySelector("#cityFlightSearch").addEventListener("click", () => runCityFlightSearch(city));
   const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
   japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
 }

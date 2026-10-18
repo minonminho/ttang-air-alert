@@ -1,0 +1,7 @@
+node_modules
+.git
+.package-stage
+dist
+worker/.browser-profile
+worker/data
+ttang-air-alert.tar.gz

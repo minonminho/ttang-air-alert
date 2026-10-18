@@ -1,0 +1,12 @@
+{
+  "name": "ttang-air-alert",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "automation": "node worker/server.mjs",
+    "automation:hkd": "node worker/run-search.mjs --city HKD"
+  },
+  "dependencies": {
+    "playwright": "^1.64.1"
+  }
+}
