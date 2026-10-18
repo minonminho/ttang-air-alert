@@ -3,8 +3,8 @@ name: Update today's deals
 on:
   workflow_dispatch:
   schedule:
-    # GitHub Actions uses UTC: 09:00, 17:00, and 01:00 KST.
-    - cron: "0 0,8,16 * * *"
+    # GitHub Actions uses UTC: 01:00 KST is 16:00 UTC on the previous day.
+    - cron: "0 16 * * *"
 
 permissions:
   contents: write
