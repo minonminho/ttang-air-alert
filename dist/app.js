@@ -23,8 +23,8 @@ const cities = [
   { name: "구마모토", code: "KMJ", lat: 32.8031, lon: 130.7079, osm: "https://www.openstreetmap.org/search?query=Kumamoto%2C%20Japan" },
   { name: "미야자키", code: "KMI", lat: 31.9077, lon: 131.4202, osm: "https://www.openstreetmap.org/search?query=Miyazaki%2C%20Japan" },
   { name: "가고시마", code: "KOJ", lat: 31.5966, lon: 130.5571, major: true, osm: "https://www.openstreetmap.org/search?query=Kagoshima%2C%20Japan" },
-  { name: "오키나와(나하)", code: "OKA", lat: 26.2122345, lon: 127.6791452, major: true, osm: "https://www.openstreetmap.org/search?query=Naha%2C%20Okinawa%2C%20Japan" },
-  { name: "이시가키", code: "ISG", lat: 24.3444441, lon: 124.1851857, major: true, osm: "https://www.openstreetmap.org/search?query=Ishigaki%2C%20Okinawa%2C%20Japan" },
+  { name: "오키나와(나하)", code: "OKA", lat: 26.2122345, lon: 127.6791452, osm: "https://www.openstreetmap.org/search?query=Naha%2C%20Okinawa%2C%20Japan" },
+  { name: "이시가키", code: "ISG", lat: 24.3444441, lon: 124.1851857, osm: "https://www.openstreetmap.org/search?query=Ishigaki%2C%20Okinawa%2C%20Japan" },
 ];
 
 // 새 크롤링 사이트를 추가할 때 이 목록에 소스만 하나씩 등록하면 필터에 자동으로 표시됩니다.
