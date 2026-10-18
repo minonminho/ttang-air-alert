@@ -103,15 +103,60 @@ function getDealSourceLabel(deal) {
   return dealSources.find((source) => source.id === getDealSourceId(deal))?.label || deal.sourceName || "기타 사이트";
 }
 
+function normalizeDealDate(value) {
+  const date = parseDealDate(value);
+  if (!date) return String(value ?? "").trim();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function getDealGroupKey(deal) {
+  return [
+    deal.arrivalCode,
+    normalizeDealDate(deal.fromDate),
+    normalizeDealDate(deal.toDate),
+    deal.tripType || "왕복",
+  ].join("|");
+}
+
+function groupDeals(deals) {
+  const groups = new Map();
+  deals.forEach((deal) => {
+    const key = getDealGroupKey(deal);
+    const group = groups.get(key);
+    if (group) {
+      group.priceOptions.push(deal);
+      if (Number(deal.price) < Number(group.price)) Object.assign(group, deal);
+    } else {
+      groups.set(key, { ...deal, priceOptions: [deal] });
+    }
+  });
+  return [...groups.values()].map((group) => ({
+    ...group,
+    priceOptions: [...group.priceOptions].sort((a, b) => Number(a.price) - Number(b.price)),
+  }));
+}
+
+function getPriceOptions(deal) {
+  return Array.isArray(deal.priceOptions) ? deal.priceOptions : [deal];
+}
+
+function renderDealSourceMeta(deal) {
+  const options = getPriceOptions(deal);
+  if (options.length === 1) return `<span class="deal-source-tag">${getDealSourceLabel(deal)}</span>`;
+  const sources = [...new Set(options.map((option) => getDealSourceLabel(option)))];
+  return `<span class="deal-source-tag grouped">${options.length}개 가격</span> ${sources.join(" · ")}`;
+}
+
 function getVisibleDeals() {
-  return activeSource === "all" ? todayDeals : todayDeals.filter((deal) => getDealSourceId(deal) === activeSource);
+  const deals = activeSource === "all" ? todayDeals : todayDeals.filter((deal) => getDealSourceId(deal) === activeSource);
+  return activeSource === "all" ? groupDeals(deals) : deals;
 }
 
 function renderSourceFilters() {
   const container = document.querySelector("#sourceFilters");
   if (!container) return;
   const buttons = [
-    { id: "all", label: "ALL", count: todayDeals.length },
+    { id: "all", label: "ALL", count: groupDeals(todayDeals).length },
     ...dealSources.map((source) => ({
       id: source.id,
       label: source.label,
@@ -141,9 +186,9 @@ function renderDeals(deals) {
   }
   list.innerHTML = deals.map((deal) => `
     <article class="deal-card" data-arrival="${deal.arrivalCode}">
-      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub"><span class="deal-source-tag">${getDealSourceLabel(deal)}</span> ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p>${renderWeekdayStrip(deal)}</div>
+      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p>${renderWeekdayStrip(deal)}</div>
       <strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong>
-      <a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a>
+      <a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a>
     </article>`).join("");
 }
 
@@ -156,7 +201,7 @@ function showCityDeals(city) {
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
   panel.innerHTML = `
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
-    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">예약 ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
+    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
