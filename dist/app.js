@@ -523,13 +523,10 @@ function showCityDeals(city) {
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
   panel.innerHTML = `
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
-    <div class="city-search-action"><button id="cityFlightSearch" type="button">항공권 정보 가져오기</button><span id="cityFlightStatus">네이버 · 주말 포함 3·4·5·6일 일정</span></div>
-    <div id="cityFlightResults" class="city-flight-results"></div>
     <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
-  panel.querySelector("#cityFlightSearch").addEventListener("click", () => runCityFlightSearch(city));
   const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
   japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
 }
