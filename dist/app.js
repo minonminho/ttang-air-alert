@@ -347,7 +347,36 @@ async function loadDeals() {
   }
 }
 
+async function refreshTodayDeals() {
+  const button = document.querySelector("#refreshDeals");
+  if (!button) return;
+  button.disabled = true;
+  button.textContent = "업데이트 중…";
+  try {
+    const baseUrl = getAutomationUrl();
+    const createResponse = await fetch(`${baseUrl}/api/deals/refresh`, { method: "POST" });
+    const created = await createResponse.json();
+    if (!createResponse.ok) throw new Error(created.error || "업데이트 작업을 시작하지 못했습니다.");
+    let state = created;
+    while (state.status === "queued" || state.status === "running") {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const statusResponse = await fetch(`${baseUrl}/api/deals/refresh/status`);
+      state = await statusResponse.json();
+      if (!statusResponse.ok) throw new Error(state.error || "업데이트 상태를 확인하지 못했습니다.");
+    }
+    if (state.status !== "succeeded") throw new Error(state.error || "오늘의 땡처리 업데이트에 실패했습니다.");
+    await loadDeals();
+    showToast("오늘의 땡처리를 업데이트했습니다.");
+  } catch (error) {
+    showToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "↻ 업데이트";
+  }
+}
+
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
+document.querySelector("#refreshDeals").addEventListener("click", refreshTodayDeals);
 renderCityPicker();
 renderSourceFilters();
 setupMap();

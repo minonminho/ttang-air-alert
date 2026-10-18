@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY worker ./worker
 COPY dist ./dist
+COPY crawler ./crawler
 
 ENV NODE_ENV=production
 ENV TTANG_AUTOMATION_PORT=8787

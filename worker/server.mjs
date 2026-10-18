@@ -2,12 +2,14 @@ import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { searchNaver, DESTINATIONS } from "./naver-playwright.mjs";
 
 const port = Number(process.env.TTANG_AUTOMATION_PORT || 8787);
 const host = process.env.TTANG_AUTOMATION_HOST || "127.0.0.1";
 const jobs = new Map();
 let runningJobId = null;
+let refreshState = { status: "idle", error: null, output: "" };
 const staticRoot = path.resolve(process.cwd(), "dist");
 const staticFiles = {
   "/": ["index.html", "text/html; charset=utf-8"],
@@ -82,6 +84,23 @@ async function runJob(job) {
   }
 }
 
+function runDealsRefresh() {
+  refreshState = { status: "running", error: null, output: "", startedAt: new Date().toISOString() };
+  const child = spawn(process.execPath, ["crawler/update-snapshot.mjs"], { cwd: process.cwd(), env: process.env });
+  child.stdout.on("data", (chunk) => { refreshState.output = `${refreshState.output}${chunk}`.slice(-4000); });
+  child.stderr.on("data", (chunk) => { refreshState.output = `${refreshState.output}${chunk}`.slice(-4000); });
+  child.on("error", (error) => {
+    refreshState.status = "failed";
+    refreshState.error = error.message;
+    refreshState.finishedAt = new Date().toISOString();
+  });
+  child.on("close", (code) => {
+    refreshState.status = code === 0 ? "succeeded" : "failed";
+    if (code !== 0) refreshState.error = refreshState.output || `수집 프로세스가 종료 코드 ${code}로 끝났습니다.`;
+    refreshState.finishedAt = new Date().toISOString();
+  });
+}
+
 const server = http.createServer(async (request, response) => {
   if (request.method === "OPTIONS") return sendJson(response, 204, {});
   if (request.method === "GET" && request.url === "/health") return sendJson(response, 200, { ok: true, runningJobId });
@@ -90,7 +109,7 @@ const server = http.createServer(async (request, response) => {
       const body = await readBody(request);
       const destinationCode = String(body.city || "HKD").toUpperCase();
       if (!DESTINATIONS.has(destinationCode)) return sendJson(response, 400, { error: "지원하지 않는 도시입니다." });
-      if (runningJobId) return sendJson(response, 409, { error: "이미 다른 항공권 검색이 진행 중입니다.", jobId: runningJobId });
+      if (runningJobId || refreshState.status === "running") return sendJson(response, 409, { error: "이미 다른 업데이트 작업이 진행 중입니다.", jobId: runningJobId });
       const job = createJob(destinationCode);
       void runJob(job);
       return sendJson(response, 202, { jobId: job.id, status: job.status, destination: job.destination });
@@ -103,6 +122,12 @@ const server = http.createServer(async (request, response) => {
     const job = jobs.get(match[1]);
     return job ? sendJson(response, 200, job) : sendJson(response, 404, { error: "검색 작업을 찾을 수 없습니다." });
   }
+  if (request.method === "POST" && request.url === "/api/deals/refresh") {
+    if (runningJobId || refreshState.status === "running") return sendJson(response, 409, { error: "이미 다른 업데이트 작업이 진행 중입니다." });
+    runDealsRefresh();
+    return sendJson(response, 202, refreshState);
+  }
+  if (request.method === "GET" && request.url === "/api/deals/refresh/status") return sendJson(response, 200, refreshState);
   if (request.method === "GET" && await serveStatic(request, response)) return;
   return sendJson(response, 404, { error: "Not found" });
 });
