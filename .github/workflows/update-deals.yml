@@ -85,7 +85,12 @@ jobs:
           CITIES: ${{ matrix.cities }}
           SEARCH_DATE: ${{ needs.plan.outputs.search_date }}
           MAX_TRIPS: ${{ needs.plan.outputs.max_trips }}
-        run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --local-only
+        run: |
+          if [ "$SEARCH_SCOPE" = "test" ]; then
+            node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --local-only --fresh
+          else
+            node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --local-only
+          fi
       - name: Upload shard checkpoint
         if: always()
         uses: actions/upload-artifact@v4
