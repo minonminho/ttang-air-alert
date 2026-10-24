@@ -56,6 +56,15 @@ jobs:
       - name: Search Naver flights for all 26 cities
         run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE"
 
+      - name: Upload flight search diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-search-diagnostics
+          path: worker/data/diagnostics/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Prepare published flight snapshot
         run: cp worker/data/latest-flight-results.json dist/flight-results.json
 

@@ -1,4 +1,6 @@
 import { chromium } from "playwright";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { getFreshFlightCacheEntry, loadFlightCache, makeFlightCacheKey, saveFlightCache } from "./flight-cache.mjs";
 
 const NAVER_BASE_URL = "https://flight.naver.com";
@@ -160,7 +162,7 @@ function failureFromPage(text) {
   return null;
 }
 
-async function waitForFlightPrices(page, timeoutMs = 30000) {
+async function waitForFlightPrices(page, timeoutMs, networkEvents) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const text = await page.locator("body").innerText();
@@ -169,7 +171,21 @@ async function waitForFlightPrices(page, timeoutMs = 30000) {
     if (parsePrices(text).length) return;
     await page.waitForTimeout(1000);
   }
-  throw new Error("네이버 항공권 결과가 30초 안에 표시되지 않아 검색을 중단했습니다.");
+  const failed = networkEvents.filter((event) => event.kind === "requestfailed" || event.status >= 400).slice(-3);
+  const details = failed.length ? ` 실패 요청: ${failed.map((event) => `${event.url} (${event.error || event.status})`).join(", ")}` : "";
+  throw new Error(`네이버 항공권 결과가 ${Math.round(timeoutMs / 1000)}초 안에 표시되지 않았습니다.${details}`);
+}
+
+async function saveSearchDiagnostics(page, destinationCode, trip, error, networkEvents) {
+  const directory = path.resolve("worker/data/diagnostics", `${destinationCode}-${trip.departureDate}-${trip.returnDate}`);
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "diagnostic.json"), JSON.stringify({
+    destinationCode, trip, error: error.message, url: page.url(),
+    title: await page.title().catch(() => ""), networkEvents,
+  }, null, 2));
+  await fs.writeFile(path.join(directory, "page.txt"), await page.locator("body").innerText().catch(() => ""));
+  await page.screenshot({ path: path.join(directory, "page.png"), fullPage: true }).catch(() => {});
+  console.error(`검색 실패 진단 파일: ${directory}`);
 }
 
 async function readFlightOptions(page, searchUrl) {
@@ -217,6 +233,7 @@ export async function searchNaver({
   headless = true,
   searchDelayMs = DEFAULT_SEARCH_DELAY_MS,
   cacheTtlHours = Number(process.env.TTANG_FLIGHT_CACHE_HOURS || 24),
+  resultTimeoutMs = Number(process.env.TTANG_RESULT_TIMEOUT_MS || 90000),
 } = {}) {
   if (!DESTINATIONS.has(destinationCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${destinationCode}`);
 
@@ -229,12 +246,26 @@ export async function searchNaver({
   let browser = null;
   let context = null;
   let page = null;
+  const networkEvents = [];
+  function recordNetworkEvent(event) {
+    networkEvents.push(event);
+    if (networkEvents.length > 100) networkEvents.shift();
+  }
 
   async function ensurePage() {
     if (page) return page;
     browser = await chromium.launch({ headless });
     context = await browser.newContext({ locale: "ko-KR", timezoneId: "Asia/Seoul" });
     page = await context.newPage();
+    page.on("requestfailed", (request) => {
+      if (["document", "xhr", "fetch", "script"].includes(request.resourceType())) {
+        recordNetworkEvent({ kind: "requestfailed", url: request.url().split("?")[0], error: request.failure()?.errorText });
+      }
+    });
+    page.on("response", (response) => {
+      if (response.status() >= 400) recordNetworkEvent({ kind: "response", url: response.url().split("?")[0], status: response.status() });
+    });
+    page.on("pageerror", (error) => recordNetworkEvent({ kind: "pageerror", error: error.message }));
     return page;
   }
 
@@ -252,9 +283,16 @@ export async function searchNaver({
 
       if (!options) {
         const activePage = await ensurePage();
-        await activePage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-        await waitForFlightPrices(activePage);
-        options = await readFlightOptions(activePage, searchUrl);
+        networkEvents.length = 0;
+        try {
+          const response = await activePage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+          if (response && response.status() >= 400) throw new Error(`네이버 페이지 응답 오류: HTTP ${response.status()}`);
+          await waitForFlightPrices(activePage, Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 90000), networkEvents);
+          options = await readFlightOptions(activePage, searchUrl);
+        } catch (error) {
+          await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch((diagnosticError) => console.error(`진단 파일 저장 실패: ${diagnosticError.message}`));
+          throw error;
+        }
         cache.entries[cacheKey] = { checkedAt: Date.now(), options };
         cacheDirty = true;
       }
