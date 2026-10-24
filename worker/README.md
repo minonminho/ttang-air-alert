@@ -31,3 +31,5 @@ Invoke-RestMethod http://127.0.0.1:8787/api/jobs/<jobId>
 ```
 
 CLI에서 하코다테 검색은 `npm run automation:hkd`로 시작합니다. 한 일정만 시험하려면 `node worker/run-search.mjs --city HKD --smoke --start-date 2026-11-06`처럼 실행합니다. Google이 접근 확인 화면을 반환하면 해당 작업을 중단합니다. 실패 진단은 `worker/data/diagnostics/`와 Actions의 `flight-search-diagnostics` 아티팩트에 남습니다.
+
+결과 로딩 시간 초과는 1회 재시도합니다. 재시도도 실패하면 해당 일정을 오류로 기록하고 다음 일정을 검색하며, 연속 3개 일정이 실패하면 그 도시 검색을 중단합니다. 일부 일정이 실패한 결과는 `partial`로 저장합니다. 결과가 전혀 없는 실패 실행은 Supabase의 기존 결과를 덮어쓰지 않습니다.

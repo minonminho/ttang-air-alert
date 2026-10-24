@@ -2,6 +2,33 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { makeSearchUrl, makeCandidateTrips, readGoogleFlightRows } from './google-playwright.mjs';
+import { retrySearchOnce } from './search-recovery.mjs';
+
+test('transient loading failure retries once and returns the recovered results', async () => {
+  let attempts = 0;
+  const fares = [{ price:200000 }];
+  const result = await retrySearchOnce(async () => {
+    if (++attempts === 1) throw Object.assign(new Error('loading'), { code:'FLIGHT_RESULTS_TIMEOUT' });
+    return fares;
+  }, { delay:async () => {} });
+  assert.equal(attempts, 2);
+  assert.equal(result, fares);
+});
+
+test('persistent timeout is surfaced after two attempts; access errors are not retried', async () => {
+  let attempts = 0;
+  await assert.rejects(retrySearchOnce(async () => {
+    attempts++;
+    throw Object.assign(new Error('loading'), { code:'FLIGHT_RESULTS_TIMEOUT' });
+  }, { delay:async () => {} }), /loading/);
+  assert.equal(attempts, 2);
+  attempts = 0;
+  await assert.rejects(retrySearchOnce(async () => {
+    attempts++;
+    throw new Error('Google Flights 접근 확인 화면');
+  }), /접근 확인/);
+  assert.equal(attempts, 1);
+});
 
 test('public URL keeps exact airports, round-trip dates and KRW', () => {
   const url = new URL(makeSearchUrl('HKD', new Date(2026, 10, 6), new Date(2026, 10, 8)));

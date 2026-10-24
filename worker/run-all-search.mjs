@@ -29,7 +29,8 @@ async function saveProgress(status) {
   };
   await fs.mkdir(path.dirname(latestResultsPath), { recursive: true });
   await fs.writeFile(latestResultsPath, JSON.stringify(snapshot));
-  await saveSnapshot("flights_latest", snapshot);
+  // A failed run with no fares must not erase the previous usable snapshot.
+  if (results.length || status === "succeeded") await saveSnapshot("flights_latest", snapshot);
 }
 
 for (const [index, [destinationCode, destination]] of [...DESTINATIONS.entries()].entries()) {
@@ -43,6 +44,7 @@ for (const [index, [destinationCode, destination]] of [...DESTINATIONS.entries()
       mode,
       headless: true,
       onProgress: (nextProgress) => {
+        console.log(`  ${destinationCode} [${nextProgress.current}/${nextProgress.total}] ${nextProgress.trip.departureDate} ~ ${nextProgress.trip.returnDate} (${nextProgress.phase}${nextProgress.cached ? ", cache" : ""})`);
         progress = {
           cityIndex: index + 1,
           totalCities: DESTINATIONS.size,
@@ -55,6 +57,10 @@ for (const [index, [destinationCode, destination]] of [...DESTINATIONS.entries()
       onResults: (items) => {
         results.push(...items);
         progress = { ...progress, resultCount: results.length };
+      },
+      onTripError: (failure) => {
+        errors.push({ destinationCode, destination, ...failure });
+        console.warn(`  ${destinationCode} ${failure.departureDate} ~ ${failure.returnDate}: 재시도 실패, 다음 일정으로 진행`);
       },
     });
     if (!results.some((result) => result.destinationCode === destinationCode)) results.push(...cityResult.results);
@@ -70,6 +76,6 @@ for (const [index, [destinationCode, destination]] of [...DESTINATIONS.entries()
 
 const status = errors.length === 0 ? "succeeded" : results.length ? "partial" : "failed";
 await saveProgress(status);
-console.log(`Google Flights 전체 검색 완료: ${results.length}개 결과, ${errors.length}개 도시 실패`);
+console.log(`Google Flights 전체 검색 완료: ${results.length}개 결과, 오류 ${errors.length}건`);
 
 if (status === "failed") process.exitCode = 1;
