@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getFreshFlightCacheEntry, loadFlightCache, makeFlightCacheKey, saveFlightCache } from "./flight-cache.mjs";
-import { isTransientSearchError, retrySearchOnce } from "./search-recovery.mjs";
+import { isTransientSearchError, retrySearchOnce, withSearchDeadline } from "./search-recovery.mjs";
 
 const GOOGLE_BASE_URL = "https://www.google.com/travel/flights";
 const DEPARTURE_CODE = "ICN";
@@ -158,8 +158,8 @@ async function saveSearchDiagnostics(page, destinationCode, trip, error, network
     destinationCode, trip, error: error.message, stage: error.stage, url: page.url(),
     title: await page.title().catch(() => ""), networkEvents,
   }, null, 2));
-  await fs.writeFile(path.join(directory, "page.txt"), await page.locator("body").innerText().catch(() => ""));
-  await page.screenshot({ path: path.join(directory, "page.png"), fullPage: true }).catch(() => {});
+  await fs.writeFile(path.join(directory, "page.txt"), await page.locator("body").innerText({timeout:2000}).catch(() => ""));
+  await page.screenshot({ path: path.join(directory, "page.png"), fullPage: true, timeout:3000 }).catch(() => {});
   console.error(`검색 실패 진단 파일: ${directory}`);
 }
 
@@ -186,13 +186,18 @@ export async function readGoogleFlightRows(page) {
   return [...unique.values()].sort((a, b) => a.price - b.price);
 }
 
-async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents) {
+async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, departureNavigation) {
   const outboundRows = await readGoogleFlightRows(page);
   const candidates = [];
   // Check the cheapest five departing options, then rank their return combinations.
   for (const [outboundIndex, outbound] of outboundRows.slice(0, TOP_RESULTS).entries()) {
     if (outboundIndex > 0) {
-      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      if (departureNavigation === 'history') {
+        await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.getByText(/^(Top|Other) departing flights$/).first().waitFor({ timeout: timeoutMs });
+      } else {
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      }
       if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
     }
     const currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
@@ -236,6 +241,9 @@ export async function searchGoogle({
   cacheTtlHours = Number(process.env.TTANG_FLIGHT_CACHE_HOURS || 24),
   resultTimeoutMs = Number(process.env.TTANG_RESULT_TIMEOUT_MS || 90000),
   maxTrips = Infinity,
+  useCache = true,
+  departureNavigation = 'history',
+  tripTimeoutMs = 180000,
 } = {}) {
   if (!DESTINATIONS.has(destinationCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${destinationCode}`);
 
@@ -257,9 +265,11 @@ export async function searchGoogle({
   }
 
   async function ensurePage() {
-    if (page) return page;
-    browser = await chromium.launch({ headless });
-    context = await browser.newContext({ locale: "en-US", timezoneId: "Asia/Seoul" });
+    if (page && !page.isClosed()) return page;
+    if (!browser) {
+      browser = await chromium.launch({ headless });
+      context = await browser.newContext({ locale: "en-US", timezoneId: "Asia/Seoul" });
+    }
     page = await context.newPage();
     page.on("requestfailed", (request) => {
       if (["document", "xhr", "fetch", "script"].includes(request.resourceType())) {
@@ -280,7 +290,7 @@ export async function searchGoogle({
       const returnDate = parseDate(trip.returnDate);
       const searchUrl = makeSearchUrl(destinationCode, departure, returnDate);
       const cacheKey = `google-v2|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
-      const cached = getFreshFlightCacheEntry(cache, cacheKey);
+      const cached = useCache ? getFreshFlightCacheEntry(cache, cacheKey) : null;
       let options = cached?.options || null;
       const cacheHit = Boolean(options);
       onProgress({ current: index + 1, total: trips.length, searchedTrips: searchedTrips + 1, phase, cached: cacheHit, trip, searchUrl });
@@ -289,15 +299,19 @@ export async function searchGoogle({
         const activePage = await ensurePage();
         networkEvents.length = 0;
         try {
-          options = await retrySearchOnce(async () => {
+          options = await withSearchDeadline(() => retrySearchOnce(async () => {
             const response = await activePage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
             if (response && response.status() >= 400) throw new Error(`Google Flights 페이지 응답 오류: HTTP ${response.status()}`);
             const timeoutMs = Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 90000);
             const hasResults = await waitForFlightPrices(activePage, timeoutMs, networkEvents);
-            return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents) : [];
-          }, { onRetry: () => console.warn(`${destinationCode} ${trip.departureDate} ~ ${trip.returnDate}: 일시적인 로딩 실패, 1회 재시도`) });
+            return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents, departureNavigation) : [];
+          }, { onRetry: () => console.warn(`${destinationCode} ${trip.departureDate} ~ ${trip.returnDate}: 일시적인 로딩 실패, 1회 재시도`) }), tripTimeoutMs, async (error) => {
+            await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch(() => {});
+            await activePage.close().catch(() => {});
+            page = null;
+          });
         } catch (error) {
-          await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch((diagnosticError) => console.error(`진단 파일 저장 실패: ${diagnosticError.message}`));
+          if (error.code !== 'FLIGHT_TRIP_DEADLINE') await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch((diagnosticError) => console.error(`진단 파일 저장 실패: ${diagnosticError.message}`));
           if (!isTransientSearchError(error)) throw error;
           const failure = { ...trip, error: error.message };
           tripErrors.push(failure);
@@ -322,7 +336,11 @@ export async function searchGoogle({
       results.push(...tripResults);
       consecutiveFailures = 0;
       searchedTrips += 1;
-      onResults(tripResults, { ...trip, index: index + 1, total: trips.length, phase, cached: cacheHit });
+      await onResults(tripResults, { ...trip, index: index + 1, total: trips.length, phase, cached: cacheHit });
+      if (cacheDirty && searchedTrips % 10 === 0) {
+        await saveFlightCache(cache);
+        cacheDirty = false;
+      }
       if (!cacheHit && index < trips.length - 1 && searchDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, searchDelayMs));
     }
   }

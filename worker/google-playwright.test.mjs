@@ -2,7 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { makeSearchUrl, makeCandidateTrips, readGoogleFlightRows } from './google-playwright.mjs';
-import { retrySearchOnce } from './search-recovery.mjs';
+import { retrySearchOnce, withSearchDeadline } from './search-recovery.mjs';
+
+test('whole-trip deadline cancels in-flight work before starting another schedule', async () => {
+  let finish;
+  let cancelled = false;
+  const pending = new Promise((resolve) => { finish = resolve; });
+  await assert.rejects(withSearchDeadline(() => pending, 5, async () => {
+    cancelled = true;
+    finish([]);
+  }), {code:'FLIGHT_TRIP_DEADLINE'});
+  assert.equal(cancelled, true);
+  assert.deepEqual(await withSearchDeadline(async () => [1], 100), [1]);
+});
 
 test('transient loading failure retries once and returns the recovered results', async () => {
   let attempts = 0;

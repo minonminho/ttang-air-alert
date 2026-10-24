@@ -4,8 +4,17 @@ on:
   push:
     paths:
       - ".github/automation-now.trigger"
+      - ".github/automation-test.trigger"
   workflow_dispatch:
     inputs:
+      search_scope:
+        description: "test: 도쿄·하코다테 각 3개 일정 / all: 26개 도시"
+        required: true
+        default: test
+        type: choice
+        options:
+          - test
+          - all
       flight_search_mode:
         description: "Google Flights 검색 범위"
         required: true
@@ -15,81 +24,142 @@ on:
           - quick
           - full
   schedule:
-    # GitHub Actions uses UTC: 01:00 KST is 16:00 UTC on the previous day.
+    # 01:00 KST, daily.
     - cron: "0 16 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: update-deals
+  group: update-deals-${{ github.event_name == 'schedule' && 'all' || github.event_name == 'workflow_dispatch' && inputs.search_scope || 'test' }}
   cancel-in-progress: false
 
+env:
+  TZ: Asia/Seoul
+  SEARCH_SCOPE: ${{ github.event_name == 'schedule' && 'all' || github.event_name == 'workflow_dispatch' && inputs.search_scope || 'test' }}
+  FLIGHT_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.flight_search_mode || 'quick' }}
+
 jobs:
-  update:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
-    env:
-      TZ: Asia/Seoul
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.SUPABASE_PROJECT_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY }}
-      FLIGHT_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.flight_search_mode || 'quick' }}
-
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      search_date: ${{ steps.plan.outputs.search_date }}
+      max_trips: ${{ steps.plan.outputs.max_trips }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - run: npm ci
+      - id: plan
+        run: node worker/search-plan.mjs >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Crawl today's deals
-        run: node crawler/update-snapshot.mjs
-
-      - name: Search Google Flights for all 26 cities
-        run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE"
-
-      - name: Upload flight search diagnostics
+  search:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Restore recent search cache
+        uses: actions/cache@v4
+        with:
+          path: worker/data/flight-cache.json
+          key: google-v2-${{ runner.os }}-${{ env.SEARCH_SCOPE }}-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            google-v2-${{ runner.os }}-${{ env.SEARCH_SCOPE }}-${{ matrix.shard }}-
+      - run: npx playwright install --with-deps chromium
+      - name: Search assigned cities
+        timeout-minutes: ${{ env.SEARCH_SCOPE == 'test' && 15 || 300 }}
+        env:
+          CITIES: ${{ matrix.cities }}
+          SEARCH_DATE: ${{ needs.plan.outputs.search_date }}
+          MAX_TRIPS: ${{ needs.plan.outputs.max_trips }}
+        run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --local-only
+      - name: Upload shard checkpoint
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: flight-search-diagnostics
+          name: flight-shard-${{ matrix.shard }}
+          path: worker/data/latest-flight-results.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload search diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-search-diagnostics-${{ matrix.shard }}
           path: worker/data/diagnostics/
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Prepare published flight snapshot
-        run: cp worker/data/latest-flight-results.json dist/flight-results.json
-
+  publish:
+    needs: [plan, search]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: flight-shard-*
+          path: worker/data/shards
+      - name: Merge test results (preserve published data)
+        if: env.SEARCH_SCOPE == 'test'
+        run: node worker/merge-search-results.mjs --test
+      - name: Upload test summary
+        if: env.SEARCH_SCOPE == 'test'
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-test-summary
+          path: worker/data/test-flight-results.json
+          retention-days: 7
+      - name: Merge results and save to Supabase
+        if: env.SEARCH_SCOPE != 'test'
+        run: node worker/merge-search-results.mjs
+      - name: Install Chromium
+        if: env.SEARCH_SCOPE != 'test'
+        run: npx playwright install --with-deps chromium
+      - name: Crawl today's deals
+        if: env.SEARCH_SCOPE != 'test'
+        run: node crawler/update-snapshot.mjs
       - name: Publish snapshots to repository
+        if: env.SEARCH_SCOPE != 'test'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add dist/deals.json dist/flight-results.json
-          if git diff --cached --quiet; then
-            echo "No snapshot changes to commit."
-            exit 0
-          fi
+          if git diff --cached --quiet; then exit 0; fi
           git commit -m "chore: publish latest flight snapshots"
           git fetch origin main
           if ! git rebase origin/main; then
-            conflicts=$(git diff --name-only --diff-filter=U)
-            if [ "$conflicts" = "dist/deals.json"$'\n'"dist/flight-results.json" ] || [ "$conflicts" = "dist/flight-results.json"$'\n'"dist/deals.json" ]; then
-              git checkout --theirs dist/deals.json dist/flight-results.json
-              git add dist/deals.json dist/flight-results.json
-              GIT_EDITOR=true git rebase --continue
-            else
-              git rebase --abort
-              exit 1
-            fi
+            while IFS= read -r file; do
+              case "$file" in
+                dist/deals.json|dist/flight-results.json) git checkout --theirs -- "$file"; git add -- "$file" ;;
+                *) git rebase --abort; exit 1 ;;
+              esac
+            done < <(git diff --name-only --diff-filter=U)
+            GIT_EDITOR=true git rebase --continue
           fi
           git push origin HEAD:main
