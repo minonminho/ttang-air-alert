@@ -186,11 +186,16 @@ export async function readGoogleFlightRows(page) {
   return [...unique.values()].sort((a, b) => a.price - b.price);
 }
 
-async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, departureNavigation) {
+export function getDepartureSampleSize(mode) {
+  return mode === 'quick' ? 2 : TOP_RESULTS;
+}
+
+async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, departureNavigation, mode) {
   const outboundRows = await readGoogleFlightRows(page);
   const candidates = [];
-  // Check the cheapest five departing options, then rank their return combinations.
-  for (const [outboundIndex, outbound] of outboundRows.slice(0, TOP_RESULTS).entries()) {
+  // Quick mode checks the two cheapest outgoing choices; full mode checks five.
+  const departureSampleSize = getDepartureSampleSize(mode);
+  for (const [outboundIndex, outbound] of outboundRows.slice(0, departureSampleSize).entries()) {
     if (outboundIndex > 0) {
       if (departureNavigation === 'history') {
         await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -218,7 +223,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
         outbound: { description: outbound.aria, operation: outbound.operation },
         inbound: { description: inbound.aria, operation: inbound.operation },
         priceType: 'round-trip',
-        selectionScope: 'five-cheapest-departures',
+        selectionScope: `${departureSampleSize}-cheapest-departures`,
       });
     }
   }
@@ -304,7 +309,7 @@ export async function searchGoogle({
             if (response && response.status() >= 400) throw new Error(`Google Flights 페이지 응답 오류: HTTP ${response.status()}`);
             const timeoutMs = Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 90000);
             const hasResults = await waitForFlightPrices(activePage, timeoutMs, networkEvents);
-            return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents, departureNavigation) : [];
+            return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents, departureNavigation, mode) : [];
           }, { onRetry: () => console.warn(`${destinationCode} ${trip.departureDate} ~ ${trip.returnDate}: 일시적인 로딩 실패, 1회 재시도`) }), tripTimeoutMs, async (error) => {
             await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch(() => {});
             await activePage.close().catch(() => {});

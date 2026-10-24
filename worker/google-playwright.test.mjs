@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
-import { makeSearchUrl, makeCandidateTrips, readGoogleFlightRows } from './google-playwright.mjs';
+import { getDepartureSampleSize, makeSearchUrl, makeCandidateTrips, readGoogleFlightRows } from './google-playwright.mjs';
 import { retrySearchOnce, withSearchDeadline } from './search-recovery.mjs';
 
 test('whole-trip deadline cancels in-flight work before starting another schedule', async () => {
@@ -48,6 +48,11 @@ test('public URL keeps exact airports, round-trip dates and KRW', () => {
   assert.equal(url.searchParams.get('curr'), 'KRW');
   assert.match(url.searchParams.get('q'), /ICN to HKD departing 2026-11-06 returning 2026-11-08/);
   assert.match(url.searchParams.get('q'), /Round trip/);
+});
+
+test('quick mode inspects fewer outgoing flights while full mode keeps five', () => {
+  assert.equal(getDepartureSampleSize('quick'), 2);
+  assert.equal(getDepartureSampleSize('full'), 5);
 });
 
 test('candidate durations include departure day and both weekend days', () => {

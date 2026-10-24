@@ -1,1 +1,1 @@
-Run the two-city, three-schedule Google Flights test with separate search jobs.
+Run a fresh two-city Google Flights speed test after tuning quick mode.
