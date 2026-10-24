@@ -1,1 +1,1 @@
-Run an uncached two-city Google Flights speed test after tuning quick mode.
+Run a two-city Google Flights test with same-day date handling fixed.
