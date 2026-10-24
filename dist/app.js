@@ -86,7 +86,7 @@ function renderAutomationResults(job, container) {
     groups.set(result.tripDays, items);
   }
   const sections = [...groups.entries()].sort(([left], [right]) => left - right).map(([tripDays, results]) => `
-    <section class="automation-duration"><div class="automation-duration-title"><strong>${tripDays}일 일정</strong><span>최저가 ${results.length}개</span></div>${results.map((result) => `<a class="automation-result" href="${escapeHtml(result.url)}" target="_blank" rel="noopener"><strong>${formatPrice(result.price)}</strong><span>${formatDealDate(result.departureDate)} ~ ${formatDealDate(result.returnDate)}</span><small>네이버 검색 결과 ↗</small></a>`).join("")}</section>`).join("");
+    <section class="automation-duration"><div class="automation-duration-title"><strong>${tripDays}일 일정</strong><span>최저가 ${results.length}개</span></div>${results.map((result) => `<a class="automation-result" href="${escapeHtml(result.url)}" target="_blank" rel="noopener"><strong>${formatPrice(result.price)}</strong><span>${formatDealDate(result.departureDate)} ~ ${formatDealDate(result.returnDate)}</span><small>Google Flights 검색 결과 ↗</small></a>`).join("")}</section>`).join("");
   container.innerHTML = sections || '<div class="automation-empty">조건에 맞는 항공권을 찾지 못했어요.</div>';
 }
 
@@ -99,7 +99,7 @@ async function runCityFlightSearch(city) {
 
   button.disabled = true;
   button.textContent = "검색 중…";
-  status.textContent = "네이버 항공권에서 일정별 최저가를 확인하고 있어요.";
+  status.textContent = "Google Flights에서 일정별 최저가를 확인하고 있어요.";
   resultBox.innerHTML = '<div class="automation-loading">검색 작업을 준비하고 있어요…</div>';
   let workerConnected = false;
 
@@ -269,7 +269,7 @@ function openAllCitySearchPanel(mode = "quick") {
   markerByCode.forEach((marker) => marker.getElement()?.classList.remove("active"));
   const panel = document.querySelector("#cityDealsPanel");
   panel.innerHTML = `
-    <div class="city-panel-header"><div><p class="city-panel-kicker">ALL CITIES</p><h3 class="city-panel-title">전체 도시 항공권</h3><p class="city-panel-code">네이버 · 26개 도시</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
+    <div class="city-panel-header"><div><p class="city-panel-kicker">ALL CITIES</p><h3 class="city-panel-title">전체 도시 항공권</h3><p class="city-panel-code">Google Flights · 26개 도시</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
     <div class="city-search-action"><button id="allCityFlightSearch" type="button">빠른 전체 검색</button><button id="allCityFullSearch" type="button" class="full-flight-search">정밀 검색</button><span id="allCityFlightStatus">대표 일정 + 저렴한 주간 정밀 검색</span></div>
     <div id="allCityFlightResults" class="city-flight-results"></div>`;
   panel.classList.add("visible");

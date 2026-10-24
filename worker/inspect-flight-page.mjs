@@ -1,10 +1,10 @@
 import { chromium } from "playwright";
-import { makeCandidateTrips, makeSearchUrl } from "./naver-playwright.mjs";
+import { makeCandidateTrips, makeSearchUrl } from "./google-playwright.mjs";
 
 const trip = makeCandidateTrips().find((trip) => trip.departureDate > new Date().toISOString().slice(0, 10));
 const browser = await chromium.launch({ headless: true });
 try {
-  const page = await browser.newPage({ locale: "ko-KR", timezoneId: "Asia/Seoul" });
+  const page = await browser.newPage({ locale: "en-US", timezoneId: "Asia/Seoul" });
   const failures = [];
   page.on("requestfailed", (request) => failures.push({ url: request.url().split("?")[0], error: request.failure()?.errorText }));
   const response = await page.goto(makeSearchUrl("NRT", new Date(`${trip.departureDate}T00:00:00`), new Date(`${trip.returnDate}T00:00:00`)), { waitUntil: "domcontentloaded", timeout: 60000 });

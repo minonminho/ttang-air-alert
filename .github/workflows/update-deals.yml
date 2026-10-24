@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       flight_search_mode:
-        description: "네이버 항공권 검색 범위"
+        description: "Google Flights 검색 범위"
         required: true
         default: quick
         type: choice
@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
+      TZ: Asia/Seoul
       SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.SUPABASE_PROJECT_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY }}
       FLIGHT_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.flight_search_mode || 'quick' }}
@@ -53,7 +54,7 @@ jobs:
       - name: Crawl today's deals
         run: node crawler/update-snapshot.mjs
 
-      - name: Search Naver flights for all 26 cities
+      - name: Search Google Flights for all 26 cities
         run: node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE"
 
       - name: Upload flight search diagnostics

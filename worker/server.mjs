@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { searchNaver, DESTINATIONS } from "./naver-playwright.mjs";
+import { searchGoogle, DESTINATIONS } from "./google-playwright.mjs";
 import { readSnapshot, saveSnapshot } from "./supabase-store.mjs";
 
 const port = Number(process.env.TTANG_AUTOMATION_PORT || 8787);
@@ -129,7 +129,7 @@ async function runJob(job) {
   job.status = "running";
   try {
     const headless = process.env.TTANG_HEADLESS == null ? process.platform !== "win32" : process.env.TTANG_HEADLESS !== "false";
-    const result = await searchNaver({
+    const result = await searchGoogle({
       destinationCode: job.destinationCode,
       headless,
       onProgress: (progress) => { job.progress = progress; },
@@ -157,7 +157,7 @@ async function runAllCitiesJob(job) {
       const [destinationCode, destination] = destinations[index];
       try {
         const headless = process.env.TTANG_HEADLESS == null ? process.platform !== "win32" : process.env.TTANG_HEADLESS !== "false";
-        const result = await searchNaver({
+        const result = await searchGoogle({
           destinationCode,
           includeAllResults: true,
           mode: job.mode,

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { getFreshFlightCacheEntry, loadFlightCache, makeFlightCacheKey, saveFlightCache } from "./flight-cache.mjs";
 
-const NAVER_BASE_URL = "https://flight.naver.com";
+const GOOGLE_BASE_URL = "https://www.google.com/travel/flights";
 const DEPARTURE_CODE = "ICN";
 const TRIP_DAYS = [3, 4, 5, 6];
 const TOP_RESULTS = 5;
@@ -29,10 +29,6 @@ function dateKey(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function compactDate(date) {
-  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
-}
-
 function parseDate(value) {
   const match = String(value).match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);
   if (!match) return null;
@@ -56,11 +52,11 @@ function includesWeekend(start, end) {
 }
 
 export function makeSearchUrl(destinationCode, departureDate, returnDate) {
-  const route = `${DEPARTURE_CODE}:airport-${destinationCode}:airport-${compactDate(departureDate)}/${destinationCode}:airport-${DEPARTURE_CODE}:airport-${compactDate(returnDate)}`;
-  const url = new URL(`/flights/international/${route}`, NAVER_BASE_URL);
-  url.searchParams.set("adult", "1");
-  url.searchParams.set("isDirect", "false");
-  url.searchParams.set("fareType", "Y");
+  const url = new URL(GOOGLE_BASE_URL);
+  // Use the public search page; no private API or encoded internal request.
+  url.searchParams.set("q", `Round trip flights from ${DEPARTURE_CODE} to ${destinationCode} departing ${dateKey(departureDate)} returning ${dateKey(returnDate)} for 1 adult economy`);
+  url.searchParams.set("hl", "en");
+  url.searchParams.set("curr", "KRW");
   return url.href;
 }
 
@@ -128,36 +124,10 @@ function selectRefinementTrips({ allTrips, initialTrips, results, weeks = QUICK_
   return allTrips.filter((trip) => selectedWeeks.has(weekKey(trip.departureDate)) && !initialKeys.has(tripKey(trip)));
 }
 
-function parsePrices(text) {
-  return [...String(text).matchAll(/([0-9]{1,3}(?:,[0-9]{3})+)\s*원/g)]
-    .map((match) => Number(match[1].replaceAll(",", "")))
-    .filter((price) => price >= MIN_PRICE && price < 10000000);
-}
-
-function normalizeFlightOperation(value) {
-  return String(value ?? "")
-    .replace(/[0-9]{1,3}(?:,[0-9]{3})+\s*원/g, "")
-    .replace(/\b\d{4}[./-]\d{1,2}[./-]\d{1,2}\b/g, "")
-    .replace(/\b\d{1,2}[./-]\d{1,2}\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function extractAirline(value) {
-  const knownAirlines = [
-    "대한항공", "아시아나항공", "제주항공", "진에어", "티웨이항공", "에어부산", "에어서울", "이스타항공",
-    "에어프레미아", "플라이강원", "ANA", "일본항공", "JAL", "피치항공", "스카이마크", "스타플라이어",
-    "Jetstar", "젯스타", "Air Japan", "ZIPAIR", "Philippine Airlines",
-  ];
-  const text = String(value ?? "");
-  return knownAirlines.find((airline) => text.toLowerCase().includes(airline.toLowerCase())) || "기타";
-}
-
 function failureFromPage(text) {
   const normalized = String(text).replace(/\s+/g, " ");
-  if (/서비스가 불안정|일시적인 오류|잠시 후 다시 접속|접근이 제한|자동화|captcha|robot/i.test(normalized)) {
-    return "네이버 항공권이 현재 결과를 제공하지 않아 검색을 중단했습니다.";
+  if (/unusual traffic|not a robot|captcha|접근이 제한|비정상적인 트래픽/i.test(normalized)) {
+    return "Google Flights 접근 확인 화면이 표시되어 검색을 중단했습니다.";
   }
   return null;
 }
@@ -168,12 +138,13 @@ async function waitForFlightPrices(page, timeoutMs, networkEvents) {
     const text = await page.locator("body").innerText();
     const failure = failureFromPage(text);
     if (failure) throw new Error(failure);
-    if (parsePrices(text).length) return;
+    if (await page.locator('li [role="link"][aria-label*="South Korean won"]').count()) return true;
+    if (/No flights found|No matching flights|No departing flights|No returning flights|항공편을 찾을 수 없/i.test(text)) return false;
     await page.waitForTimeout(1000);
   }
   const failed = networkEvents.filter((event) => event.kind === "requestfailed" || event.status >= 400).slice(-3);
   const details = failed.length ? ` 실패 요청: ${failed.map((event) => `${event.url} (${event.error || event.status})`).join(", ")}` : "";
-  throw new Error(`네이버 항공권 결과가 ${Math.round(timeoutMs / 1000)}초 안에 표시되지 않았습니다.${details}`);
+  throw new Error(`Google Flights 결과가 ${Math.round(timeoutMs / 1000)}초 안에 표시되지 않았습니다.${details}`);
 }
 
 async function saveSearchDiagnostics(page, destinationCode, trip, error, networkEvents) {
@@ -188,41 +159,66 @@ async function saveSearchDiagnostics(page, destinationCode, trip, error, network
   console.error(`검색 실패 진단 파일: ${directory}`);
 }
 
-async function readFlightOptions(page, searchUrl) {
-  const text = await page.locator("body").innerText();
-  const failure = failureFromPage(text);
-  if (failure) throw new Error(failure);
-
-  const options = await page.locator("li, article, [class*='item'], [class*='result']").evaluateAll((nodes) => nodes
-    .map((node) => {
-      const textContent = node.innerText || "";
-      const link = node.querySelector("a[href]")?.href || "";
-      return { text: textContent.replace(/\s+/g, " ").trim(), link };
-    })
-    .filter((item) => /\d[\d,]*\s*원/.test(item.text))
-    .slice(0, 30));
-
-  const parsed = [];
-  const seen = new Set();
-  for (const option of options) {
-    const price = parsePrices(option.text)[0];
-    if (!price) continue;
-    const operationKey = normalizeFlightOperation(option.text);
-    const key = `${price}|${operationKey}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    parsed.push({ price, label: option.text.slice(0, 180), airline: extractAirline(option.text), operationKey, url: option.link || searchUrl });
+export async function readGoogleFlightRows(page) {
+  const rows = await page.locator('li').evaluateAll((nodes) => nodes.flatMap((node) => {
+    const link = node.querySelector('[role="link"][aria-label*="South Korean won"]');
+    if (!link || !node.getClientRects().length) return [];
+    const aria = link.getAttribute('aria-label') || '';
+    const price = Number(aria.match(/(?:From\s+)?([\d,]+) South Korean won/i)?.[1]?.replaceAll(',', ''));
+    const text = node.innerText || '';
+    const legs = [...node.querySelectorAll('[data-travelimpactmodelwebsiteurl]')].map((element) => element.getAttribute('data-travelimpactmodelwebsiteurl'));
+    return [{ price, aria, text, legs: [...new Set(legs)] }];
+  }));
+  const unique = new Map();
+  for (const row of rows) {
+    if (!Number.isFinite(row.price) || row.price <= 0 || row.price >= 10000000) continue;
+    // Stable identity comes from the rendered flight number, route and time, not prices/emissions.
+    const description = row.aria.replace(/^(?:From\s+)?[\d,]+ South Korean won round trip total\.\s*/i, '');
+    const schedule = description.match(/Leaves (.*?)\. Total duration/)?.[1] || description;
+    row.operation = `${row.legs.length ? row.legs.map((leg) => new URL(leg).searchParams.get('itinerary')?.replace(/-\d{8}(?=[,;]|$)/g, '')).join('|') : description}|${schedule}`.replace(/ on [A-Za-z]+, [A-Za-z]+ \d+/g, '').replace(/\s+/g, ' ').trim();
+    row.airline = row.aria.match(/flight with (.*?)\./i)?.[1] || '기타';
+    unique.set(`${row.price}|${row.operation}`, row);
   }
-
-  if (!parsed.length) {
-    const fallbackPrices = [...new Set(parsePrices(text))].sort((a, b) => a - b).slice(0, TOP_RESULTS);
-    if (!fallbackPrices.length) throw new Error("네이버 항공권 가격 정보를 읽지 못했습니다.");
-    return fallbackPrices.map((price) => ({ price, label: "네이버 항공권 검색 결과", airline: "기타", operationKey: "네이버 항공권 검색 결과", url: searchUrl }));
-  }
-  return parsed.sort((left, right) => left.price - right.price).slice(0, TOP_RESULTS);
+  return [...unique.values()].sort((a, b) => a.price - b.price);
 }
 
-export async function searchNaver({
+async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents) {
+  const outboundRows = await readGoogleFlightRows(page);
+  const candidates = [];
+  // Check the cheapest five departing options, then rank their return combinations.
+  for (const outbound of outboundRows.slice(0, TOP_RESULTS)) {
+    if (page.url() !== searchUrl) {
+      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
+    }
+    const currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
+    if (!currentOutbound) throw new Error('Google Flights 결과가 변경되어 가는 편을 다시 확인해야 합니다.');
+    await page.locator('li').filter({ has: page.getByRole('link', { name: currentOutbound.aria, exact: true }) }).first().click();
+    await page.getByText(/Choose return to/).first().waitFor({ timeout: timeoutMs });
+    if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) continue;
+    const returnRows = await readGoogleFlightRows(page);
+    for (const inbound of returnRows.slice(0, TOP_RESULTS)) {
+      if (inbound.price < MIN_PRICE) continue;
+      candidates.push({
+        price: inbound.price,
+        label: `가는 편: ${outbound.aria.replace(/^(?:From\s+)?[\d,]+ South Korean won round trip total\.\s*/i, '')} / 오는 편: ${inbound.aria.replace(/^(?:From\s+)?[\d,]+ South Korean won round trip total\.\s*/i, '')}`,
+        airline: [...new Set([outbound.airline, inbound.airline])].join(' / '),
+        operationKey: `${outbound.operation}|return:${inbound.operation}`,
+        // Public link preserves the selected outbound flight and requested return date.
+        url: page.url(),
+        outbound: { description: outbound.aria, operation: outbound.operation },
+        inbound: { description: inbound.aria, operation: inbound.operation },
+        priceType: 'round-trip',
+        selectionScope: 'five-cheapest-departures',
+      });
+    }
+  }
+  const unique = new Map();
+  for (const option of candidates) unique.set(`${option.price}|${option.operationKey}`, option);
+  return [...unique.values()].sort((a, b) => a.price - b.price).slice(0, TOP_RESULTS);
+}
+
+export async function searchGoogle({
   destinationCode,
   startDate = new Date(),
   months = 3,
@@ -234,11 +230,12 @@ export async function searchNaver({
   searchDelayMs = DEFAULT_SEARCH_DELAY_MS,
   cacheTtlHours = Number(process.env.TTANG_FLIGHT_CACHE_HOURS || 24),
   resultTimeoutMs = Number(process.env.TTANG_RESULT_TIMEOUT_MS || 90000),
+  maxTrips = Infinity,
 } = {}) {
   if (!DESTINATIONS.has(destinationCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${destinationCode}`);
 
   const allTrips = makeCandidateTrips({ startDate, months });
-  const initialTrips = mode === "quick" ? makeQuickCandidateTrips({ startDate, months }) : allTrips;
+  const initialTrips = (mode === "quick" ? makeQuickCandidateTrips({ startDate, months }) : allTrips).slice(0, maxTrips);
   const cache = await loadFlightCache({ ttlMs: Math.max(1, cacheTtlHours) * 60 * 60 * 1000 });
   const results = [];
   let cacheDirty = false;
@@ -255,7 +252,7 @@ export async function searchNaver({
   async function ensurePage() {
     if (page) return page;
     browser = await chromium.launch({ headless });
-    context = await browser.newContext({ locale: "ko-KR", timezoneId: "Asia/Seoul" });
+    context = await browser.newContext({ locale: "en-US", timezoneId: "Asia/Seoul" });
     page = await context.newPage();
     page.on("requestfailed", (request) => {
       if (["document", "xhr", "fetch", "script"].includes(request.resourceType())) {
@@ -275,7 +272,7 @@ export async function searchNaver({
       const departure = parseDate(trip.departureDate);
       const returnDate = parseDate(trip.returnDate);
       const searchUrl = makeSearchUrl(destinationCode, departure, returnDate);
-      const cacheKey = makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate);
+      const cacheKey = `google-v2|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
       const cached = getFreshFlightCacheEntry(cache, cacheKey);
       let options = cached?.options || null;
       const cacheHit = Boolean(options);
@@ -286,9 +283,10 @@ export async function searchNaver({
         networkEvents.length = 0;
         try {
           const response = await activePage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
-          if (response && response.status() >= 400) throw new Error(`네이버 페이지 응답 오류: HTTP ${response.status()}`);
-          await waitForFlightPrices(activePage, Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 90000), networkEvents);
-          options = await readFlightOptions(activePage, searchUrl);
+          if (response && response.status() >= 400) throw new Error(`Google Flights 페이지 응답 오류: HTTP ${response.status()}`);
+          const timeoutMs = Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 90000);
+          const hasResults = await waitForFlightPrices(activePage, timeoutMs, networkEvents);
+          options = hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents) : [];
         } catch (error) {
           await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch((diagnosticError) => console.error(`진단 파일 저장 실패: ${diagnosticError.message}`));
           throw error;
@@ -304,7 +302,7 @@ export async function searchNaver({
         departureDate: trip.departureDate,
         returnDate: trip.returnDate,
         tripDays: trip.tripDays,
-        source: "네이버 항공권",
+        source: "Google Flights",
       }));
       results.push(...tripResults);
       searchedTrips += 1;
@@ -316,7 +314,7 @@ export async function searchNaver({
   try {
     await searchTrips(initialTrips, mode === "quick" ? "대표 일정" : "정밀 일정");
     let refinementTrips = [];
-    if (mode === "quick") {
+    if (mode === "quick" && !Number.isFinite(maxTrips)) {
       refinementTrips = selectRefinementTrips({ allTrips, initialTrips, results });
       await searchTrips(refinementTrips, "저렴한 주간 정밀 검색");
     }

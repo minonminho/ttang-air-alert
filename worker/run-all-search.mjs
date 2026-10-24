@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { DESTINATIONS, searchNaver } from "./naver-playwright.mjs";
+import { DESTINATIONS, searchGoogle } from "./google-playwright.mjs";
 import { isSupabaseWriteConfigured, saveSnapshot } from "./supabase-store.mjs";
 
 const modeIndex = process.argv.indexOf("--mode");
@@ -19,6 +19,7 @@ if (!isSupabaseWriteConfigured()) {
 async function saveProgress(status) {
   const snapshot = {
     jobId,
+    source: "Google Flights",
     mode,
     status,
     updatedAt: new Date().toISOString(),
@@ -36,7 +37,7 @@ for (const [index, [destinationCode, destination]] of [...DESTINATIONS.entries()
   console.log(`[${index + 1}/${DESTINATIONS.size}] ${destination} (${destinationCode}) 검색 시작`);
 
   try {
-    const cityResult = await searchNaver({
+    const cityResult = await searchGoogle({
       destinationCode,
       includeAllResults: true,
       mode,
@@ -69,6 +70,6 @@ for (const [index, [destinationCode, destination]] of [...DESTINATIONS.entries()
 
 const status = errors.length === 0 ? "succeeded" : results.length ? "partial" : "failed";
 await saveProgress(status);
-console.log(`네이버 전체 검색 완료: ${results.length}개 결과, ${errors.length}개 도시 실패`);
+console.log(`Google Flights 전체 검색 완료: ${results.length}개 결과, ${errors.length}개 도시 실패`);
 
 if (status === "failed") process.exitCode = 1;
