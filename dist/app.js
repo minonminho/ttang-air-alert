@@ -354,6 +354,9 @@ function renderAllFlightResults(job) {
 function openAllCitySearchPanel(mode = "quick") {
   selectedCity = null;
   clearSelectedAttractionMarkers();
+  const attractionsPanel = document.querySelector("#cityAttractionsPanel");
+  attractionsPanel?.classList.remove("visible");
+  if (attractionsPanel) attractionsPanel.innerHTML = "";
   if (selectedAirportMarker) japanMap?.removeLayer(selectedAirportMarker);
   selectedAirportMarker = null;
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.remove("highlight"));
@@ -644,7 +647,7 @@ function addAttractionMarker(city, attraction, index, point, sequence) {
   marker.bindTooltip(attraction.nameKo, { className: "attraction-marker-tooltip", direction: "top", offset: [0, -10] });
   marker.bindPopup(`<strong>${escapeHtml(attraction.nameKo)}</strong><br /><span>${escapeHtml(attraction.nameJa)} · ${escapeHtml(attraction.areaJa)}</span><br /><a href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener">OpenStreetMap에서 보기 ↗</a>`);
   selectedAttractionMarkers.set(index, marker);
-  const button = document.querySelector(`#cityDealsPanel [data-attraction-index="${index}"]`);
+  const button = document.querySelector(`#cityAttractionsPanel [data-attraction-index="${index}"]`);
   if (button) {
     button.disabled = false;
     button.addEventListener("click", () => {
@@ -661,10 +664,10 @@ function fitSelectedCityAttractions(city) {
   const airport = airportsByCode[city.code];
   if (airport) points.push([airport.lat, airport.lon]);
   selectedAttractionMarkers.forEach((marker) => points.push([marker.getLatLng().lat, marker.getLatLng().lng]));
-  const isMobile = window.matchMedia("(max-width: 560px)").matches;
+  const isCompact = window.matchMedia("(max-width: 1000px)").matches;
   japanMap.flyToBounds(points, {
-    paddingTopLeft: [28, 28],
-    paddingBottomRight: isMobile ? [28, 28] : [365, 28],
+    paddingTopLeft: isCompact ? [28, 28] : [330, 28],
+    paddingBottomRight: isCompact ? [28, 28] : [365, 28],
     maxZoom: ["OKA", "ISG"].includes(city.code) ? 10 : 11,
     duration: 0.8,
   });
@@ -674,7 +677,7 @@ function loadCityAttractions(city) {
   clearSelectedAttractionMarkers();
   const attractions = window.JAPAN_ATTRACTIONS?.[city.code] || [];
   const coordinates = window.JAPAN_ATTRACTION_COORDINATES?.[city.code] || [];
-  const status = document.querySelector("#cityDealsPanel .city-attraction-status");
+  const status = document.querySelector("#cityAttractionsPanel .city-attraction-status");
   if (!attractions.length || !status || !japanMap) return;
   const sequence = attractionLoadSequence;
   let found = 0;
@@ -722,6 +725,7 @@ function showAirportMarker(city) {
 function showCityDeals(city, { focusMap = true } = {}) {
   selectedCity = city;
   const panel = document.querySelector("#cityDealsPanel");
+  const attractionsPanel = document.querySelector("#cityAttractionsPanel");
   const matches = getVisibleDeals().filter((deal) => deal.arrivalCode === city.code);
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
   document.querySelectorAll(".city-choice").forEach((button) => button.classList.toggle("active", button.dataset.code === city.code));
@@ -730,16 +734,19 @@ function showCityDeals(city, { focusMap = true } = {}) {
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
     <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
-  panel.querySelector(".city-panel-list")?.insertAdjacentHTML("beforebegin", `${renderCityLiveFare(city)}${renderCityAttractions(city)}`);
+  panel.querySelector(".city-panel-list")?.insertAdjacentHTML("beforebegin", renderCityLiveFare(city));
+  attractionsPanel.innerHTML = renderCityAttractions(city);
+  attractionsPanel.querySelector(".city-attraction-status")?.replaceChildren("지도에 표시 준비 중");
+  attractionsPanel.classList.toggle("visible", Boolean(attractionsPanel.innerHTML));
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
   const airport = showAirportMarker(city);
   if (focusMap) {
     if (airport && japanMap) {
-      const isMobile = window.matchMedia("(max-width: 560px)").matches;
+      const isCompact = window.matchMedia("(max-width: 1000px)").matches;
       japanMap.flyToBounds([[city.lat, city.lon], [airport.lat, airport.lon]], {
-        paddingTopLeft: [28, 28],
-        paddingBottomRight: isMobile ? [28, 28] : [365, 28],
+        paddingTopLeft: isCompact ? [28, 28] : [330, 28],
+        paddingBottomRight: isCompact ? [28, 28] : [365, 28],
         maxZoom: ["OKA", "ISG"].includes(city.code) ? 10 : 11,
         duration: 0.8,
       });
@@ -754,6 +761,9 @@ function showCityDeals(city, { focusMap = true } = {}) {
 function resetMapView() {
   selectedCity = null;
   clearSelectedAttractionMarkers();
+  const attractionsPanel = document.querySelector("#cityAttractionsPanel");
+  attractionsPanel?.classList.remove("visible");
+  if (attractionsPanel) attractionsPanel.innerHTML = "";
   if (selectedAirportMarker) japanMap?.removeLayer(selectedAirportMarker);
   selectedAirportMarker = null;
   document.querySelector("#cityDealsPanel").classList.remove("visible");
