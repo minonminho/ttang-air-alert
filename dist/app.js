@@ -73,10 +73,7 @@ let selectedCity = null;
 const markerByCode = new Map();
 let selectedAirportMarker = null;
 const selectedAttractionMarkers = new Map();
-let attractionLookupController = null;
 let attractionLookupSequence = 0;
-let lastGeocodingRequestAt = 0;
-const ATTRACTION_CACHE_KEY = "ttang-osm-attractions-v1";
 const LIVE_FLIGHTS_PER_PAGE = 20;
 let liveFlightResults = [];
 let liveFlightPage = 1;
@@ -631,68 +628,11 @@ function renderCityAttractions(city) {
 
 function clearSelectedAttractionMarkers() {
   attractionLoadSequence += 1;
-  attractionLookupController?.abort();
-  attractionLookupController = null;
   selectedAttractionMarkers.forEach((marker) => japanMap?.removeLayer(marker));
   selectedAttractionMarkers.clear();
 }
 
-function readAttractionCache() {
-  try {
-    const cache = JSON.parse(localStorage.getItem(ATTRACTION_CACHE_KEY) || "{}");
-    return cache && typeof cache === "object" ? cache : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveAttractionCache(cache) {
-  try { localStorage.setItem(ATTRACTION_CACHE_KEY, JSON.stringify(cache)); } catch { /* Keep the map usable if browser storage is unavailable. */ }
-}
-
-async function geocodeAttraction(attraction, signal) {
-  const cache = readAttractionCache();
-  const cacheKey = `${attraction.id}|${attraction.query}`;
-  if (cache[cacheKey] && Number.isFinite(cache[cacheKey].lat) && Number.isFinite(cache[cacheKey].lon)) return cache[cacheKey];
-
-  const waitMs = Math.max(0, 1100 - (Date.now() - lastGeocodingRequestAt));
-  if (waitMs) await new Promise((resolve) => window.setTimeout(resolve, waitMs));
-  if (signal.aborted) return null;
-  lastGeocodingRequestAt = Date.now();
-
-  const url = new URL("https://photon.komoot.io/api/");
-  url.searchParams.set("limit", "1");
-  url.searchParams.set("countrycode", "JP");
-  url.searchParams.set("lang", "ja");
-  url.searchParams.set("q", attraction.query);
-  const requestController = new AbortController();
-  const abortRequest = () => requestController.abort();
-  signal.addEventListener("abort", abortRequest, { once: true });
-  const timeout = window.setTimeout(() => requestController.abort(), 5000);
-  let result;
-  try {
-    const response = await fetch(url, { signal: requestController.signal, headers: { Accept: "application/geo+json, application/json" } });
-    if (!response.ok) throw new Error(`Geocoder HTTP ${response.status}`);
-    const payload = await response.json();
-    result = (payload.features || []).find((feature) => feature.properties?.countrycode?.toUpperCase() === "JP") || payload.features?.[0];
-  } catch (error) {
-    if (signal.aborted) throw error;
-    if (requestController.signal.aborted) throw new Error("위치 검색 시간 초과");
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
-    signal.removeEventListener("abort", abortRequest);
-  }
-  const coordinates = result?.geometry?.coordinates;
-  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
-  const point = { lat: Number(coordinates[1]), lon: Number(coordinates[0]) };
-  if (!Number.isFinite(point.lat) || !Number.isFinite(point.lon)) return null;
-  cache[cacheKey] = point;
-  saveAttractionCache(cache);
-  return point;
-}
-
-function addAttractionMarker(city, attraction, index, point, signal, sequence) {
+function addAttractionMarker(city, attraction, index, point, sequence) {
   const icon = window.L.divIcon({
     className: "attraction-marker-shell",
     html: `<span class="attraction-marker">${index + 1}</span>`,
@@ -708,7 +648,7 @@ function addAttractionMarker(city, attraction, index, point, signal, sequence) {
   if (button) {
     button.disabled = false;
     button.addEventListener("click", () => {
-      if (sequence !== attractionLoadSequence || signal.aborted) return;
+      if (sequence !== attractionLoadSequence) return;
       japanMap?.flyTo(marker.getLatLng(), Math.max(japanMap.getZoom(), 14), { duration: 0.6 });
       marker.openPopup();
     });
@@ -730,40 +670,30 @@ function fitSelectedCityAttractions(city) {
   });
 }
 
-async function loadCityAttractions(city) {
+function loadCityAttractions(city) {
   clearSelectedAttractionMarkers();
   const attractions = window.JAPAN_ATTRACTIONS?.[city.code] || [];
+  const coordinates = window.JAPAN_ATTRACTION_COORDINATES?.[city.code] || [];
   const status = document.querySelector("#cityDealsPanel .city-attraction-status");
   if (!attractions.length || !status || !japanMap) return;
   const sequence = attractionLoadSequence;
-  const controller = new AbortController();
-  attractionLookupController = controller;
   let found = 0;
   let failed = 0;
-
-  for (const [index, attraction] of attractions.entries()) {
-    if (controller.signal.aborted || sequence !== attractionLoadSequence) return;
-    try {
-      const point = await geocodeAttraction(attraction, controller.signal);
-      if (controller.signal.aborted || sequence !== attractionLoadSequence) return;
-      if (point) {
-        addAttractionMarker(city, attraction, index, point, controller.signal, sequence);
-        found += 1;
-      } else {
-        failed += 1;
-      }
-    } catch (error) {
-      if (controller.signal.aborted || sequence !== attractionLoadSequence) return;
+  status.textContent = `관광지 위치 표시 중 · 0/${attractions.length}`;
+  attractions.forEach((attraction, index) => {
+    const point = coordinates[index];
+    if (Number.isFinite(point?.lat) && Number.isFinite(point?.lon)) {
+      addAttractionMarker(city, attraction, index, point, sequence);
+      found += 1;
+    } else {
       failed += 1;
-      console.info(`관광지 위치 확인 실패: ${attraction.nameKo}`, error.message);
     }
-    status.textContent = `지도에 ${found}/${attractions.length}곳 표시 중`;
-  }
+    status.textContent = `관광지 위치 표시 중 · ${index + 1}/${attractions.length} · ${found}곳 표시`;
+  });
 
-  if (sequence !== attractionLoadSequence) return;
   status.textContent = found
     ? `지도에 ${found}곳 표시${failed ? ` · ${failed}곳은 OSM 링크로 확인` : ""}`
-    : "위치를 찾지 못했어요 · OSM 링크에서 확인";
+    : "저장된 좌표 없음 · OSM 링크에서 확인";
   if (found) fitSelectedCityAttractions(city);
 }
 
