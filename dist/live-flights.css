@@ -1,0 +1,48 @@
+/* Clear, scannable live flight cards */
+.live-flights-section { padding-top: 30px; }
+.live-flight-filters { gap: 12px; margin-bottom: 18px; padding: 14px 16px; }
+.live-flight-filters label { gap: 8px; font-size: 12px; }
+.live-flight-filters select { min-width: 160px; padding: 9px 11px; font-size: 13px; }
+.live-flight-filters > span { margin-left: auto; color: #536b55; font: 12px "DM Mono", monospace; }
+.live-flight-filters > span strong { color: var(--navy); font-size: 15px; }
+.live-flight-filters > span small { display: block; margin-top: 4px; color: #87938a; font-size: 11px; }
+.live-flight-list { gap: 14px; }
+.live-flight-card { gap: 16px; padding: 19px 21px; border-radius: 16px; }
+.live-flight-card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.live-flight-city-block { display: flex; align-items: baseline; gap: 9px; }
+.live-flight-city-block strong { color: var(--navy); font-size: 21px; font-weight: 900; }
+.live-flight-city-block span { padding: 3px 7px; color: #6b8069; background: #edf3e9; border-radius: 5px; font: 12px "DM Mono", monospace; }
+.live-flight-price { display: grid; justify-items: end; gap: 2px; }
+.live-flight-price small { color: #78897a; font-size: 11px; }
+.live-flight-price strong { color: var(--navy); font: 800 23px "DM Mono", monospace; }
+.live-flight-legs { display: grid; grid-template-columns: minmax(0,1fr) 1px minmax(0,1fr); align-items: stretch; gap: 16px; }
+.live-flight-leg { min-width: 0; padding: 13px 15px; background: #f6f8f3; border: 1px solid #e7ece1; border-radius: 11px; }
+.live-flight-leg-label { display: block; margin-bottom: 8px; color: #789075; font-size: 12px; font-weight: 800; }
+.live-flight-leg-route { display: flex; align-items: center; gap: 9px; color: #304a36; font-size: 15px; }
+.live-flight-leg-arrow { color: #92a48c; }
+.live-flight-leg-times { display: flex; align-items: center; gap: 9px; margin-top: 5px; color: var(--navy); font: 700 20px "DM Mono", monospace; }
+.live-flight-leg-times > span { color: #a5afa5; font-size: 14px; }
+.live-flight-leg-times small { margin-left: 3px; color: #b27041; font: 700 10px sans-serif; }
+.live-flight-leg-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.live-flight-leg-meta span { padding: 4px 7px; color: #607363; background: white; border: 1px solid #e4eae0; border-radius: 5px; font-size: 11px; }
+.live-flight-leg-divider { background: #e6ebe2; }
+.live-flight-card-footer { padding-top: 13px; border-top: 1px solid #edf0ea; }
+.live-flight-schedules-heading { display: flex; align-items: center; gap: 7px; color: #526b55; font-size: 12px; }
+.live-flight-schedules-heading span { color: #819282; font-size: 11px; }
+.live-flight-schedules { gap: 8px; margin-top: 9px; }
+.live-flight-schedule { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 3px 8px; min-width: 185px; padding: 9px 11px; white-space: normal; }
+.live-flight-schedule strong { color: #42633e; font-size: 12px; }
+.live-flight-schedule > span:nth-child(2) { grid-column: 1 / 3; color: #526a57; font-size: 12px; }
+.live-flight-schedule-arrow { grid-column: 3; grid-row: 1 / 3; color: #789075; font-size: 15px; }
+.live-flight-pagination { gap: 16px; padding: 18px 0 5px; font-size: 12px; }
+.live-flight-pagination button { padding: 9px 13px; font-size: 12px; }
+@media (max-width: 640px) {
+  .live-flight-card { gap: 12px; padding: 15px; }
+  .live-flight-city-block strong { font-size: 18px; }
+  .live-flight-price strong { font-size: 19px; }
+  .live-flight-legs { grid-template-columns: minmax(0,1fr); gap: 9px; }
+  .live-flight-leg-divider { display: none; }
+  .live-flight-leg { padding: 11px 12px; }
+  .live-flight-leg-times { font-size: 18px; }
+  .live-flight-schedule { flex: 1 1 165px; min-width: min(165px,100%); }
+}

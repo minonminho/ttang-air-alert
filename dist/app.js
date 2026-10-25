@@ -48,6 +48,7 @@ let liveFlightPage = 1;
 let liveFlightCity = "all";
 let liveFlightAirline = "all";
 let renderedLiveFlightResultCount = -1;
+let liveFlightUpdatedAt = null;
 
 function showToast(message) {
   const toast = document.querySelector("#toast");
@@ -168,6 +169,8 @@ function groupFlightResults(results = []) {
       price: result.price,
       label: result.label || "항공권 운항 정보",
       airline: result.airline || inferAirline(result.label),
+      outbound: result.outbound || null,
+      inbound: result.inbound || null,
       schedules: [],
     };
     const scheduleKey = `${result.departureDate}|${result.returnDate}`;
@@ -187,13 +190,57 @@ function groupFlightResults(results = []) {
     .sort((left, right) => left.price - right.price || String(left.destination).localeCompare(String(right.destination), "ko"));
 }
 
+function parseFlightLeg(leg) {
+  const description = String(leg?.description || "");
+  const match = description.match(/Leaves\s+(.+?)\s+at\s+(.+?)\s+on\s+(.+?)\s+and arrives at\s+(.+?)\s+at\s+(.+?)\s+on\s+(.+?)\.\s+Total duration\s+(.+?)\./i);
+  if (!match) return null;
+  const airportLabel = (value) => {
+    const name = value.replace(/\s+Airport$/i, "").replace(/\s+International$/i, "");
+    const known = { "Incheon": "인천", "Narita": "도쿄 나리타", "Haneda": "도쿄 하네다", "New Chitose": "삿포로 신치토세", "Hakodate": "하코다테" };
+    return known[name] || name;
+  };
+  const departureDate = new Date(`${match[3]} 2020`);
+  const arrivalDate = new Date(`${match[6]} 2020`);
+  const arrivalNextDay = !Number.isNaN(departureDate.getTime()) && !Number.isNaN(arrivalDate.getTime())
+    && (arrivalDate.getMonth() !== departureDate.getMonth() || arrivalDate.getDate() !== departureDate.getDate());
+  const carrier = description.match(/flight with (.*?)\./i)?.[1] || "항공사 정보 없음";
+  const stopText = description.match(/(?:^|\.\s*)(Nonstop|\d+ stops?) flight\b/i)?.[1] || "운항 정보";
+  return {
+    origin: airportLabel(match[1]),
+    destination: airportLabel(match[4]),
+    departureTime: match[2].replace(/\s+/g, " ").replace(/\s*([AP]M)$/i, "$1"),
+    arrivalTime: match[5].replace(/\s+/g, " ").replace(/\s*([AP]M)$/i, "$1"),
+    duration: match[7],
+    arrivalNextDay,
+    carrier,
+    stops: stopText,
+  };
+}
+
+function renderFlightLeg(leg, direction) {
+  const detail = parseFlightLeg(leg);
+  if (!detail) return `<div class="live-flight-leg"><span class="live-flight-leg-label">${direction}</span><strong class="live-flight-leg-route">${escapeHtml(leg?.description || "운항 정보를 확인할 수 없습니다.")}</strong></div>`;
+  return `<div class="live-flight-leg">
+    <span class="live-flight-leg-label">${direction}</span>
+    <div class="live-flight-leg-route"><strong>${escapeHtml(detail.origin)}</strong><span class="live-flight-leg-arrow" aria-hidden="true">→</span><strong>${escapeHtml(detail.destination)}</strong></div>
+    <div class="live-flight-leg-times"><strong>${escapeHtml(detail.departureTime)}</strong><span>–</span><strong>${escapeHtml(detail.arrivalTime)}${detail.arrivalNextDay ? '<small>+1</small>' : ''}</strong></div>
+    <div class="live-flight-leg-meta"><span>${escapeHtml(detail.carrier)}</span><span>${escapeHtml(detail.stops)}</span><span>${escapeHtml(detail.duration)}</span></div>
+  </div>`;
+}
+
+function formatLiveRefreshTime(value) {
+  if (!value) return "수집 시각 정보 없음";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "수집 시각 정보 없음";
+  return `마지막 수집 ${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(date)}`;
+}
+
 function renderLiveFlightCard(group) {
+  const schedules = group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener"><strong>${schedule.tripDays}일 일정</strong><span>${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}</span><span class="live-flight-schedule-arrow" aria-hidden="true">↗</span></a>`).join("");
   return `<article class="live-flight-card">
-    <div class="live-flight-main">
-      <div class="live-flight-meta"><span class="live-flight-city">${escapeHtml(group.destination)} · ${escapeHtml(group.destinationCode)} · ${escapeHtml(group.airline)}</span><strong>${formatPrice(group.price)}</strong></div>
-      <p class="live-flight-operation">${escapeHtml(group.label)}</p>
-      <div class="live-flight-schedules">${group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener">${schedule.tripDays}일 · ${formatDealDate(schedule.departureDate)} ~ ${formatDealDate(schedule.returnDate)} ↗</a>`).join("")}</div>
-    </div>
+    <header class="live-flight-card-header"><div class="live-flight-city-block"><strong>${escapeHtml(group.destination)}</strong><span>${escapeHtml(group.destinationCode)}</span></div><div class="live-flight-price"><small>왕복 최저가</small><strong>${formatPrice(group.price)}</strong></div></header>
+    <div class="live-flight-legs">${renderFlightLeg(group.outbound, "가는 편")}<span class="live-flight-leg-divider" aria-hidden="true"></span>${renderFlightLeg(group.inbound, "오는 편")}</div>
+    <footer class="live-flight-card-footer"><div class="live-flight-schedules-heading"><strong>가능한 일정</strong><span>${group.schedules.length}개</span></div><div class="live-flight-schedules">${schedules}</div></footer>
   </article>`;
 }
 
@@ -230,7 +277,7 @@ function renderLiveFlightList() {
   if (liveFlightPage > totalPages) liveFlightPage = totalPages;
   const start = (liveFlightPage - 1) * LIVE_FLIGHTS_PER_PAGE;
   const visibleGroups = groups.slice(start, start + LIVE_FLIGHTS_PER_PAGE);
-  if (count) count.textContent = `${groups.length}개 항공권 · ${liveFlightPage}/${totalPages}페이지`;
+  if (count) count.innerHTML = `<strong>${groups.length.toLocaleString("ko-KR")}</strong>개 조합 <span>· ${liveFlightPage} / ${totalPages}페이지</span> <small>${escapeHtml(formatLiveRefreshTime(liveFlightUpdatedAt))}</small>`;
   list.innerHTML = visibleGroups.length ? `${visibleGroups.map(renderLiveFlightCard).join("")}${totalPages > 1 ? `<div class="live-flight-pagination"><button type="button" data-page="prev" ${liveFlightPage === 1 ? "disabled" : ""}>‹ 이전</button><span>${liveFlightPage} / ${totalPages}</span><button type="button" data-page="next" ${liveFlightPage === totalPages ? "disabled" : ""}>다음 ›</button></div>` : ""}` : '<div class="automation-empty">선택한 필터에 맞는 항공권이 없습니다.</div>';
   list.querySelector('[data-page="prev"]')?.addEventListener("click", () => { liveFlightPage -= 1; renderLiveFlightList(); });
   list.querySelector('[data-page="next"]')?.addEventListener("click", () => { liveFlightPage += 1; renderLiveFlightList(); });
@@ -239,14 +286,7 @@ function renderLiveFlightList() {
 function renderAllAutomationResults(job, container) {
   const groups = groupFlightResults(job.results || []);
   const visibleGroups = groups.slice(0, LIVE_FLIGHTS_PER_PAGE);
-  container.innerHTML = visibleGroups.length ? visibleGroups.map((group) => `
-    <article class="live-flight-card">
-      <div class="live-flight-main">
-        <div class="live-flight-meta"><span class="live-flight-city">${escapeHtml(group.destination)} · ${escapeHtml(group.destinationCode)} · ${escapeHtml(group.airline)}</span><strong>${formatPrice(group.price)}</strong></div>
-        <p class="live-flight-operation">${escapeHtml(group.label)}</p>
-        <div class="live-flight-schedules">${group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener">${schedule.tripDays}일 · ${formatDealDate(schedule.departureDate)} ~ ${formatDealDate(schedule.returnDate)} ↗</a>`).join("")}</div>
-      </div>
-    </article>`).join("") : '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
+  container.innerHTML = visibleGroups.length ? visibleGroups.map(renderLiveFlightCard).join("") : '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
 }
 
 function setAllFlightStatus(message) {
@@ -257,6 +297,7 @@ function setAllFlightStatus(message) {
 
 function renderAllFlightResults(job) {
   liveFlightResults = Array.isArray(job.results) ? job.results : [];
+  liveFlightUpdatedAt = job.updatedAt || liveFlightUpdatedAt;
   renderedLiveFlightResultCount = liveFlightResults.length;
   renderLiveFlightList();
   document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults(job, container));
@@ -342,6 +383,7 @@ async function loadLatestAllCityResults(baseUrl) {
   const response = await fetch(isLocalPage() ? `${baseUrl}/api/flights/latest` : getPublishedDataUrl("flight-results.json"), { cache: "no-store" });
   if (!response.ok) return null;
   const snapshot = await response.json();
+  liveFlightUpdatedAt = snapshot.updatedAt || liveFlightUpdatedAt;
   if (Array.isArray(snapshot.results) && snapshot.results.length) renderAllFlightResults(snapshot);
   if (snapshot.status === "succeeded" && Array.isArray(snapshot.results)) {
     setAllFlightStatus(`${groupFlightResults(snapshot.results).length}개 항공권을 최저가순으로 정리했습니다. ${snapshot.mode === "full" ? "전체 일정" : "빠른 검색"} · 중복 운항 정보는 묶었습니다.`);
