@@ -2,7 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DESTINATIONS } from './google-playwright.mjs';
-import { saveSnapshot } from './supabase-store.mjs';
 
 export function mergeSearchResults(snapshots, expectedCodes, runId) {
   const errors = snapshots.flatMap((snapshot) => snapshot.errors || []);
@@ -46,10 +45,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const snapshot = mergeSearchResults(snapshots, isTest ? ['NRT','HKD'] : [...DESTINATIONS.keys()], process.env.GITHUB_RUN_ID);
   const output = isTest ? 'worker/data/test-flight-results.json' : 'dist/flight-results.json';
   if (snapshot.status === 'failed') throw new Error('사용 가능한 결과가 없습니다. 기존 공개 결과를 보존합니다.');
-  if (!isTest) {
-    if (!await saveSnapshot('flights_latest', snapshot)) throw new Error('Supabase 설정이 누락됐습니다.');
-  }
+  const serialized = JSON.stringify(snapshot);
   await fs.mkdir(path.dirname(output), { recursive:true });
-  await fs.writeFile(output, JSON.stringify(snapshot));
-  console.log(`${snapshot.status}: ${snapshot.results.length}개 항공권, 오류 ${snapshot.errors.length}건 (${output})`);
+  await fs.writeFile(output, serialized);
+  console.log(`[publish] ${output}: ${Buffer.byteLength(serialized)} bytes, ${snapshot.results.length} flights, ${snapshot.errors.length} search errors, status=${snapshot.status}`);
 }

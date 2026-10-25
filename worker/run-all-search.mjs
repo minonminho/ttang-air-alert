@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { DESTINATIONS, searchGoogle } from "./google-playwright.mjs";
-import { isSupabaseWriteConfigured, saveSnapshot } from "./supabase-store.mjs";
 
 const modeIndex = process.argv.indexOf("--mode");
 const mode = modeIndex >= 0 && process.argv[modeIndex + 1] === "full" ? "full" : "quick";
@@ -10,7 +9,6 @@ function argument(name, fallback) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : fallback;
 }
-const localOnly = process.argv.includes('--local-only');
 const selectedCodes = argument('--cities', [...DESTINATIONS.keys()].join(',')).split(',');
 if (selectedCodes.some((code) => !DESTINATIONS.has(code))) throw new Error('Unknown city in --cities');
 const destinations = selectedCodes.map((code) => [code, DESTINATIONS.get(code)]);
@@ -25,10 +23,6 @@ const latestResultsPath = path.resolve(process.cwd(), "worker", "data", "latest-
 const results = [];
 const errors = [];
 let progress = { cityIndex: 0, totalCities: destinations.length, searchedTrips: 0, resultCount: 0 };
-
-if (!localOnly && !isSupabaseWriteConfigured()) {
-  throw new Error("SUPABASE_URL과 SUPABASE_SERVICE_ROLE_KEY GitHub Secret이 필요합니다.");
-}
 
 async function saveProgress(status) {
   const snapshot = {
@@ -49,8 +43,7 @@ async function saveProgress(status) {
   await fs.writeFile(`${latestResultsPath}.tmp`, JSON.stringify(snapshot));
   await fs.rename(`${latestResultsPath}.tmp`, latestResultsPath);
   lastCheckpointAt = Date.now();
-  // A failed run with no fares must not erase the previous usable snapshot.
-  if (!localOnly && (results.length || status === "succeeded")) await saveSnapshot("flights_latest", snapshot);
+  // Shard checkpoints remain local; only the publisher updates the public snapshot.
 }
 
 for (const [index, [destinationCode, destination]] of destinations.entries()) {
