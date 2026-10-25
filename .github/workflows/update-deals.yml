@@ -31,12 +31,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: update-deals-${{ github.event_name == 'schedule' && 'all' || github.event_name == 'workflow_dispatch' && inputs.search_scope || 'test' }}
+  group: update-deals-${{ (github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.modified, '.github/automation-now.trigger'))) && 'all' || github.event_name == 'workflow_dispatch' && inputs.search_scope || 'test' }}
   cancel-in-progress: false
 
 env:
   TZ: Asia/Seoul
-  SEARCH_SCOPE: ${{ github.event_name == 'schedule' && 'all' || github.event_name == 'workflow_dispatch' && inputs.search_scope || 'test' }}
+  # The automation-now trigger is a full 26-city run; the automation-test trigger remains test-only.
+  SEARCH_SCOPE: ${{ (github.event_name == 'schedule' || (github.event_name == 'push' && contains(github.event.head_commit.modified, '.github/automation-now.trigger'))) && 'all' || github.event_name == 'workflow_dispatch' && inputs.search_scope || 'test' }}
   FLIGHT_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.flight_search_mode || 'quick' }}
 
 jobs:

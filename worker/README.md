@@ -47,3 +47,5 @@ CLI에서 하코다테 검색은 `npm run automation:hkd`로 시작합니다. �
 - **DB 장애 처리:** 메타데이터 저장은 별도 작업으로 실행하며 실패나 Secret 누락 시 경고만 출력합니다. 검색 결과 파일을 저장하거나 GitHub에 게시하는 단계는 영향을 받지 않습니다.
 - **레거시 데이터:** 기존의 `flights_latest` JSONB 행은 자동으로 삭제하지 않습니다. 기존 데이터가 필요 없다는 것을 확인한 뒤 Supabase SQL Editor에서 `delete from public.ttang_snapshots where snapshot_key = 'flights_latest';`를 선택적으로 실행할 수 있습니다.
 - **진단:** 게시 단계 로그에는 파일 바이트 수와 항공권/오류 건수가, 메타데이터 단계에는 저장 상태와 소요 시간이 표시됩니다.
+
+📌 전체 26개 도시를 즉시 갱신하려면 `.github/automation-now.trigger` 파일을 수정하는 커밋을 `main`에 푸시합니다. `.github/automation-test.trigger` 파일 수정은 작은 테스트 범위만 실행합니다. 06:00 KST 이후에 실행한 검색은 이미 출발한 항공편을 제외하기 위해 다음 날 출발분부터 조회합니다.
