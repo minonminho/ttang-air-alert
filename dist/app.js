@@ -301,6 +301,7 @@ function renderAllFlightResults(job) {
   renderedLiveFlightResultCount = liveFlightResults.length;
   renderLiveFlightList();
   document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults(job, container));
+  if (selectedCity) showCityDeals(selectedCity, { focusMap: false });
 }
 
 function openAllCitySearchPanel(mode = "quick") {
@@ -556,7 +557,20 @@ function renderDeals(deals) {
     </article>`).join("");
 }
 
-function showCityDeals(city) {
+function renderCityLiveFare(city) {
+  const lowest = groupFlightResults(liveFlightResults)
+    .filter((group) => group.destinationCode === city.code)
+    .sort((left, right) => left.price - right.price)[0];
+  if (!lowest) return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><p class="city-panel-live-empty">아직 이 도시의 실시간 항공권 결과가 없습니다.</p></section>`;
+  const schedule = lowest.schedules[0];
+  const scheduleText = schedule
+    ? `${schedule.tripDays}일 일정 · ${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}`
+    : "검색 결과 보기";
+  const href = schedule?.url || "#liveFlights";
+  return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><div class="city-panel-live-main"><strong>${formatPrice(lowest.price)}</strong><span>왕복 · ${escapeHtml(lowest.airline)}</span></div><a class="city-panel-live-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(scheduleText)}</span><strong>항공권 보기 ↗</strong></a><small class="city-panel-live-updated">${escapeHtml(formatLiveRefreshTime(liveFlightUpdatedAt))}</small></section>`;
+}
+
+function showCityDeals(city, { focusMap = true } = {}) {
   selectedCity = city;
   const panel = document.querySelector("#cityDealsPanel");
   const matches = getVisibleDeals().filter((deal) => deal.arrivalCode === city.code);
@@ -567,10 +581,13 @@ function showCityDeals(city) {
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
     <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
+  panel.querySelector(".city-panel-list")?.insertAdjacentHTML("beforebegin", renderCityLiveFare(city));
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
-  const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
-  japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
+  if (focusMap) {
+    const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
+    japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
+  }
 }
 
 function resetMapView() {
