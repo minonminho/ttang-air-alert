@@ -17,3 +17,6 @@ create policy "Anyone can read snapshots"
   using (true);
 
 -- Writes are performed by the worker with the service_role key.
+
+-- Only counts/status are written to flights_latest_meta; full fare JSON lives in dist/flight-results.json.
+-- The legacy flights_latest row is intentionally not deleted by this migration.

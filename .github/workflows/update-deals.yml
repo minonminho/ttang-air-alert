@@ -87,9 +87,9 @@ jobs:
           MAX_TRIPS: ${{ needs.plan.outputs.max_trips }}
         run: |
           if [ "$SEARCH_SCOPE" = "test" ]; then
-            node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --local-only --fresh
+            node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --fresh
           else
-            node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS" --local-only
+            node worker/run-all-search.mjs --mode "$FLIGHT_SEARCH_MODE" --cities "$CITIES" --start-date "$SEARCH_DATE" --max-trips "$MAX_TRIPS"
           fi
       - name: Upload shard checkpoint
         if: always()
@@ -115,9 +115,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.SUPABASE_PROJECT_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -139,7 +136,7 @@ jobs:
           name: flight-test-summary
           path: worker/data/test-flight-results.json
           retention-days: 7
-      - name: Merge results and save to Supabase
+      - name: Merge results into published snapshot
         if: env.SEARCH_SCOPE != 'test'
         run: node worker/merge-search-results.mjs
       - name: Install Chromium
@@ -168,3 +165,11 @@ jobs:
             GIT_EDITOR=true git rebase --continue
           fi
           git push origin HEAD:main
+      - name: Update lightweight Supabase metadata (non-blocking)
+        if: env.SEARCH_SCOPE != 'test'
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SECRET_KEY }}
+        run: node worker/publish-search-metadata.mjs

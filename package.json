@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "automation": "node worker/server.mjs",
-    "automation:hkd": "node worker/run-search.mjs --city HKD"
+    "automation:hkd": "node worker/run-search.mjs --city HKD",
+    "test:unit": "node --test worker/search-plan.test.mjs worker/publish-search-metadata.test.mjs"
   },
   "dependencies": {
     "playwright": "^1.64.1"

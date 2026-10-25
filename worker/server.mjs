@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { searchGoogle, DESTINATIONS } from "./google-playwright.mjs";
-import { readSnapshot, saveSnapshot } from "./supabase-store.mjs";
+import { readSnapshot } from "./supabase-store.mjs";
 
 const port = Number(process.env.TTANG_AUTOMATION_PORT || 8787);
 const host = process.env.TTANG_AUTOMATION_HOST || "127.0.0.1";
@@ -99,29 +99,30 @@ async function saveLatestFlightResults(job, status = job.status) {
   };
   try {
     await fs.mkdir(path.dirname(latestResultsPath), { recursive: true });
-    await fs.writeFile(latestResultsPath, JSON.stringify(snapshot));
+    await fs.writeFile(`${latestResultsPath}.tmp`, JSON.stringify(snapshot));
+    await fs.rename(`${latestResultsPath}.tmp`, latestResultsPath);
   } catch (error) {
     console.error(`최신 항공권 결과 저장 실패: ${error.message}`);
-  }
-  try {
-    if (await saveSnapshot("flights_latest", snapshot)) console.log("Saved flights_latest to Supabase.");
-  } catch (error) {
-    console.error(`Supabase flight snapshot save failed: ${error.message}`);
   }
 }
 
 async function readLatestFlightResults() {
+  // Fresh local progress takes priority, then the published file. Supabase is legacy fallback only.
+  for (const filePath of [latestResultsPath, path.join(staticRoot, "flight-results.json")]) {
+    try {
+      const snapshot = JSON.parse(await fs.readFile(filePath, "utf8"));
+      if (Array.isArray(snapshot.results)) return snapshot;
+    } catch (error) {
+      if (error.code !== "ENOENT") console.warn(`Flight snapshot read failed (${filePath}): ${error.message}`);
+    }
+  }
   try {
-    const remoteSnapshot = await readSnapshot("flights_latest");
-    if (remoteSnapshot) return remoteSnapshot;
+    const legacySnapshot = await readSnapshot("flights_latest");
+    if (legacySnapshot && Array.isArray(legacySnapshot.results)) return legacySnapshot;
   } catch (error) {
-    console.error(`Supabase flight snapshot read failed: ${error.message}`);
+    console.error(`Legacy Supabase flight snapshot read failed: ${error.message}`);
   }
-  try {
-    return JSON.parse(await fs.readFile(latestResultsPath, "utf8"));
-  } catch {
-    return { status: "empty", results: [] };
-  }
+  return { status: "empty", results: [] };
 }
 
 async function runJob(job) {

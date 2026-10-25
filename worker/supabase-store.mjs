@@ -24,6 +24,7 @@ async function request(path, options = {}, key) {
 
   const response = await fetch(`${config.url}/rest/v1/${path}`, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(10000),
     headers: {
       apikey: key,
       authorization: `Bearer ${key}`,
