@@ -244,10 +244,19 @@ function renderLiveFlightCard(group) {
   </article>`;
 }
 
+function getGroupAirlines(group) {
+  const legAirlines = [group.outbound, group.inbound]
+    .map((leg) => leg?.airline || String(leg?.description || "").match(/flight with\s+(.+?)\./i)?.[1])
+    .map((airline) => String(airline || "").trim())
+    .filter(Boolean);
+  const names = legAirlines.length ? legAirlines : String(group.airline || "").split(/\s*\/\s*/);
+  return [...new Set(names.map((airline) => airline.trim()).filter(Boolean))];
+}
+
 function getFilteredLiveFlightGroups(groups = groupFlightResults(liveFlightResults)) {
   return groups.filter((group) => {
     const cityMatch = liveFlightCity === "all" || group.destinationCode === liveFlightCity;
-    const airlineMatch = liveFlightAirline === "all" || group.airline === liveFlightAirline;
+    const airlineMatch = liveFlightAirline === "all" || getGroupAirlines(group).includes(liveFlightAirline);
     return cityMatch && airlineMatch;
   });
 }
@@ -256,8 +265,11 @@ function updateLiveFlightFilters(groups) {
   const cityFilter = document.querySelector("#liveCityFilter");
   const airlineFilter = document.querySelector("#liveAirlineFilter");
   if (!cityFilter || !airlineFilter) return;
+  const airlineLabel = airlineFilter.closest("label");
+  if (airlineLabel?.firstChild?.nodeType === Node.TEXT_NODE) airlineLabel.firstChild.textContent = "항공사 (가는 편·오는 편) ";
+  airlineFilter.setAttribute("aria-label", "항공사 필터: 가는 편 또는 오는 편 운항사");
   const citiesByCode = new Map(groups.map((group) => [group.destinationCode, group.destination]));
-  const airlines = [...new Set(groups.map((group) => group.airline))].sort((left, right) => left.localeCompare(right, "ko"));
+  const airlines = [...new Set(groups.flatMap(getGroupAirlines))].sort((left, right) => left.localeCompare(right, "ko"));
   cityFilter.innerHTML = `<option value="all">전체 도시</option>${[...citiesByCode.entries()].map(([code, name]) => `<option value="${escapeHtml(code)}">${escapeHtml(name)} (${escapeHtml(code)})</option>`).join("")}`;
   airlineFilter.innerHTML = `<option value="all">전체 항공사</option>${airlines.map((airline) => `<option value="${escapeHtml(airline)}">${escapeHtml(airline)}</option>`).join("")}`;
   if (!citiesByCode.has(liveFlightCity)) liveFlightCity = "all";

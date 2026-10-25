@@ -1,4 +1,6 @@
 /* Clear, scannable live flight cards */
+body { font-family: "Pretendard Variable", Pretendard, sans-serif; }
+.city-choice.major small, .deal-price small { font-family: "Pretendard Variable", Pretendard, sans-serif; }
 .city-panel-live-fare { display: grid; gap: 8px; margin-top: 11px; padding: 12px; background: #f1f6ec; border: 1px solid #dce9d5; border-radius: 10px; }
 .city-panel-live-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .city-panel-live-heading span { color: #849681; font: 9px "DM Mono", monospace; letter-spacing: .7px; }
