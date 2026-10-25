@@ -1,4 +1,8 @@
 /* Clear, scannable live flight cards */
+.city-picker-footer { display: flex; justify-content: flex-end; margin-top: 10px; padding-top: 9px; border-top: 1px solid #edf0ea; }
+.live-flight-shortcut { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; color: #45643f; background: #edf5e7; border: 1px solid #dcebd3; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; transition: .16s ease; }
+.live-flight-shortcut:hover, .live-flight-shortcut:focus-visible { color: var(--navy); background: var(--lime); border-color: #b9d476; transform: translateY(-1px); }
+.live-flight-shortcut-arrow { color: #819282; }
 .live-flights-section { padding-top: 30px; }
 .live-flight-filters { gap: 12px; margin-bottom: 18px; padding: 14px 16px; }
 .live-flight-filters label { gap: 8px; font-size: 12px; }
