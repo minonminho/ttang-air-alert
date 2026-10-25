@@ -1,6 +1,10 @@
 /* Clear, scannable live flight cards */
 body { font-family: "Pretendard Variable", Pretendard, sans-serif; }
 .city-choice.major small, .deal-price small { font-family: "Pretendard Variable", Pretendard, sans-serif; }
+.airport-marker-shell { background: transparent; border: 0; }
+.airport-marker { position: relative; display: grid; width: 24px; height: 24px; place-items: center; color: #fff; background: #d85f49; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 9px rgba(37,48,36,.35); font-size: 12px; }
+.airport-marker strong { position: absolute; top: -8px; left: 18px; padding: 2px 5px; color: #71372f; background: #fffefa; border: 1px solid #efc3b7; border-radius: 5px; box-shadow: 0 2px 5px rgba(37,48,36,.14); font: 800 9px "DM Mono", monospace; }
+.leaflet-tooltip.airport-marker-tooltip { color: #473a34; background: #fffefa; border: 1px solid #efc3b7; font-size: 10px; font-weight: 700; }
 .city-panel-live-fare { display: grid; gap: 8px; margin-top: 11px; padding: 12px; background: #f1f6ec; border: 1px solid #dce9d5; border-radius: 10px; }
 .city-panel-live-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .city-panel-live-heading span { color: #849681; font: 9px "DM Mono", monospace; letter-spacing: .7px; }
@@ -13,6 +17,25 @@ body { font-family: "Pretendard Variable", Pretendard, sans-serif; }
 .city-panel-live-link strong { flex: none; color: #456f40; font-size: 9px; }
 .city-panel-live-updated { color: #91a092; font-size: 9px; }
 .city-panel-live-empty { margin: 0; color: #87938a; font-size: 10px; line-height: 1.5; }
+.city-panel-attractions { display: grid; gap: 7px; margin-top: 11px; padding: 10px; background: #f8f7ef; border: 1px solid #ebe8d8; border-radius: 10px; }
+.city-panel-attractions-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; }
+.city-panel-attractions-heading > strong { color: #4a594a; font-size: 11px; }
+.city-attraction-status { color: #8a9588; font-size: 9px; }
+.city-attraction-list { display: grid; gap: 4px; }
+.city-attraction-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 5px; }
+.city-attraction-focus { display: flex; min-width: 0; align-items: center; gap: 7px; padding: 5px 4px; color: #526456; background: transparent; border-radius: 6px; cursor: pointer; text-align: left; }
+.city-attraction-focus:hover:not(:disabled) { background: #edf3e9; }
+.city-attraction-focus:disabled { cursor: wait; opacity: .62; }
+.city-attraction-number { display: grid; width: 19px; height: 19px; flex: none; place-items: center; color: #fff; background: #6d8d60; border-radius: 50%; font: 800 9px "DM Mono", monospace; }
+.city-attraction-name { display: grid; min-width: 0; gap: 1px; }
+.city-attraction-name strong, .city-attraction-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.city-attraction-name strong { color: #455848; font-size: 10px; }
+.city-attraction-name small { color: #8e9b8d; font-size: 8px; }
+.city-attraction-osm { padding: 4px 6px; color: #657b5e; background: #eff4e9; border-radius: 5px; font-size: 8px; font-weight: 800; text-decoration: none; }
+.city-attraction-osm:hover { color: #344c35; background: #e2efd8; }
+.attraction-marker-shell { background: transparent; border: 0; }
+.attraction-marker { display: grid; width: 22px; height: 22px; place-items: center; color: #fff; background: #6d8d60; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 8px rgba(37,48,36,.35); font: 800 9px "DM Mono", monospace; }
+.leaflet-tooltip.attraction-marker-tooltip { color: #435643; background: #fffefa; border: 1px solid #dce8d5; font-size: 10px; font-weight: 700; }
 .city-picker-footer { display: flex; justify-content: flex-end; margin-top: 10px; padding-top: 9px; border-top: 1px solid #edf0ea; }
 .live-flight-shortcut { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; color: #45643f; background: #edf5e7; border: 1px solid #dcebd3; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; transition: .16s ease; }
 .live-flight-shortcut:hover, .live-flight-shortcut:focus-visible { color: var(--navy); background: var(--lime); border-color: #b9d476; transform: translateY(-1px); }
@@ -54,6 +77,9 @@ body { font-family: "Pretendard Variable", Pretendard, sans-serif; }
 .live-flight-schedule-arrow { grid-column: 3; grid-row: 1 / 3; color: #789075; font-size: 15px; }
 .live-flight-pagination { gap: 16px; padding: 18px 0 5px; font-size: 12px; }
 .live-flight-pagination button { padding: 9px 13px; font-size: 12px; }
+@media (max-width: 560px) {
+  .city-deals-panel { position: relative; top: auto; right: auto; z-index: 2; width: auto; max-height: 320px; margin-top: 10px; }
+}
 @media (max-width: 640px) {
   .live-flight-card { gap: 12px; padding: 15px; }
   .live-flight-city-block strong { font-size: 18px; }

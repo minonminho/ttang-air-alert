@@ -1,3 +1,32 @@
+const airportsByCode = {
+  NRT: { name: "成田国際空港", lat: 35.764722, lon: 140.386389 },
+  KIX: { name: "関西国際空港", lat: 34.434722, lon: 135.244167 },
+  NGO: { name: "中部国際空港", lat: 34.858414, lon: 136.805408 },
+  FUK: { name: "福岡空港", lat: 33.585942, lon: 130.450686 },
+  CTS: { name: "新千歳空港", lat: 42.775201, lon: 141.692283 },
+  HKD: { name: "函館空港", lat: 41.770000, lon: 140.821944 },
+  OBO: { name: "とかち帯広空港", lat: 42.733333, lon: 143.217222 },
+  AOJ: { name: "青森空港", lat: 40.734722, lon: 140.690833 },
+  SDJ: { name: "仙台空港", lat: 38.139722, lon: 140.916944 },
+  KIJ: { name: "新潟空港", lat: 37.955833, lon: 139.113333 },
+  IBR: { name: "茨城空港", lat: 36.181083, lon: 140.415167 },
+  FSZ: { name: "富士山静岡空港", lat: 34.796111, lon: 138.187500 },
+  KMQ: { name: "小松空港", lat: 36.394611, lon: 136.406544 },
+  OKJ: { name: "岡山桃太郎空港", lat: 34.756944, lon: 133.855278 },
+  YGJ: { name: "米子鬼太郎空港", lat: 35.492222, lon: 133.236389 },
+  HIJ: { name: "広島空港", lat: 34.436111, lon: 132.919444 },
+  TAK: { name: "高松空港", lat: 34.214167, lon: 134.015556 },
+  MYJ: { name: "松山空港", lat: 33.827222, lon: 132.699722 },
+  HSG: { name: "九州佐賀国際空港", lat: 33.149722, lon: 130.302222 },
+  NGS: { name: "長崎空港", lat: 32.916944, lon: 129.913611 },
+  OIT: { name: "大分空港", lat: 33.479444, lon: 131.737222 },
+  KMJ: { name: "阿蘇くまもと空港", lat: 32.837222, lon: 130.855000 },
+  KMI: { name: "宮崎空港", lat: 31.877222, lon: 131.448611 },
+  KOJ: { name: "鹿児島空港", lat: 31.803333, lon: 130.719444 },
+  OKA: { name: "那覇空港", lat: 26.195833, lon: 127.645833 },
+  ISG: { name: "新石垣空港", lat: 24.396389, lon: 124.245000 },
+};
+
 const cities = [
   { name: "도쿄", code: "NRT", lat: 35.6768601, lon: 139.7638947, major: true, osm: "https://www.openstreetmap.org/search?query=Tokyo%2C%20Japan" },
   { name: "오사카", code: "KIX", lat: 34.6937569, lon: 135.5014539, major: true, osm: "https://www.openstreetmap.org/search?query=Osaka%2C%20Japan" },
@@ -42,6 +71,12 @@ let japanMap = null;
 let japanBounds = [];
 let selectedCity = null;
 const markerByCode = new Map();
+let selectedAirportMarker = null;
+const selectedAttractionMarkers = new Map();
+let attractionLookupController = null;
+let attractionLookupSequence = 0;
+let lastNominatimRequestAt = 0;
+const ATTRACTION_CACHE_KEY = "ttang-osm-attractions-v1";
 const LIVE_FLIGHTS_PER_PAGE = 20;
 let liveFlightResults = [];
 let liveFlightPage = 1;
@@ -313,11 +348,17 @@ function renderAllFlightResults(job) {
   renderedLiveFlightResultCount = liveFlightResults.length;
   renderLiveFlightList();
   document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults(job, container));
-  if (selectedCity) showCityDeals(selectedCity, { focusMap: false });
+  if (selectedCity) {
+    const fareCard = document.querySelector("#cityDealsPanel .city-panel-live-fare");
+    if (fareCard) fareCard.outerHTML = renderCityLiveFare(selectedCity);
+  }
 }
 
 function openAllCitySearchPanel(mode = "quick") {
   selectedCity = null;
+  clearSelectedAttractionMarkers();
+  if (selectedAirportMarker) japanMap?.removeLayer(selectedAirportMarker);
+  selectedAirportMarker = null;
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.remove("highlight"));
   document.querySelectorAll(".city-choice").forEach((button) => button.classList.remove("active"));
   markerByCode.forEach((marker) => marker.getElement()?.classList.remove("active"));
@@ -582,6 +623,158 @@ function renderCityLiveFare(city) {
   return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><div class="city-panel-live-main"><strong>${formatPrice(lowest.price)}</strong><span>왕복 · ${escapeHtml(lowest.airline)}</span></div><a class="city-panel-live-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(scheduleText)}</span><strong>항공권 보기 ↗</strong></a><small class="city-panel-live-updated">${escapeHtml(formatLiveRefreshTime(liveFlightUpdatedAt))}</small></section>`;
 }
 
+function renderCityAttractions(city) {
+  const attractions = window.JAPAN_ATTRACTIONS?.[city.code] || [];
+  if (!attractions.length) return "";
+  return `<section class="city-panel-attractions" aria-label="유명 관광지"><div class="city-panel-attractions-heading"><strong>유명 관광지</strong><span class="city-attraction-status">OSM 위치 찾는 중 · 0/${attractions.length}</span></div><div class="city-attraction-list">${attractions.map((attraction, index) => `<div class="city-attraction-row"><button class="city-attraction-focus" type="button" data-attraction-index="${index}" disabled><span class="city-attraction-number">${index + 1}</span><span class="city-attraction-name"><strong>${escapeHtml(attraction.nameKo)}</strong><small>${escapeHtml(attraction.nameJa)}</small></span></button><a class="city-attraction-osm" href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener" aria-label="${escapeHtml(attraction.nameKo)} OSM 검색">OSM ↗</a></div>`).join("")}</div></section>`;
+}
+
+function clearSelectedAttractionMarkers() {
+  attractionLoadSequence += 1;
+  attractionLookupController?.abort();
+  attractionLookupController = null;
+  selectedAttractionMarkers.forEach((marker) => japanMap?.removeLayer(marker));
+  selectedAttractionMarkers.clear();
+}
+
+function readAttractionCache() {
+  try {
+    const cache = JSON.parse(localStorage.getItem(ATTRACTION_CACHE_KEY) || "{}");
+    return cache && typeof cache === "object" ? cache : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAttractionCache(cache) {
+  try { localStorage.setItem(ATTRACTION_CACHE_KEY, JSON.stringify(cache)); } catch { /* Keep the map usable if browser storage is unavailable. */ }
+}
+
+async function geocodeAttraction(attraction, signal) {
+  const cache = readAttractionCache();
+  const cacheKey = `${attraction.id}|${attraction.query}`;
+  if (cache[cacheKey] && Number.isFinite(cache[cacheKey].lat) && Number.isFinite(cache[cacheKey].lon)) return cache[cacheKey];
+
+  const waitMs = Math.max(0, 1100 - (Date.now() - lastNominatimRequestAt));
+  if (waitMs) await new Promise((resolve) => window.setTimeout(resolve, waitMs));
+  if (signal.aborted) return null;
+  lastNominatimRequestAt = Date.now();
+
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("countrycodes", "jp");
+  url.searchParams.set("accept-language", "ja");
+  url.searchParams.set("q", attraction.query);
+  const response = await fetch(url, { signal, headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`OSM ${response.status}`);
+  const results = await response.json();
+  const result = results[0];
+  if (!result) return null;
+  const point = { lat: Number(result.lat), lon: Number(result.lon) };
+  if (!Number.isFinite(point.lat) || !Number.isFinite(point.lon)) return null;
+  cache[cacheKey] = point;
+  saveAttractionCache(cache);
+  return point;
+}
+
+function addAttractionMarker(city, attraction, index, point, signal, sequence) {
+  const icon = window.L.divIcon({
+    className: "attraction-marker-shell",
+    html: `<span class="attraction-marker">${index + 1}</span>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+  });
+  const marker = window.L.marker([point.lat, point.lon], { icon, zIndexOffset: 600 }).addTo(japanMap);
+  marker.bindTooltip(attraction.nameKo, { className: "attraction-marker-tooltip", direction: "top", offset: [0, -10] });
+  marker.bindPopup(`<strong>${escapeHtml(attraction.nameKo)}</strong><br /><span>${escapeHtml(attraction.nameJa)} · ${escapeHtml(attraction.areaJa)}</span><br /><a href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener">OpenStreetMap에서 보기 ↗</a>`);
+  selectedAttractionMarkers.set(index, marker);
+  const button = document.querySelector(`#cityDealsPanel [data-attraction-index="${index}"]`);
+  if (button) {
+    button.disabled = false;
+    button.addEventListener("click", () => {
+      if (sequence !== attractionLoadSequence || signal.aborted) return;
+      japanMap?.flyTo(marker.getLatLng(), Math.max(japanMap.getZoom(), 14), { duration: 0.6 });
+      marker.openPopup();
+    });
+  }
+}
+
+function fitSelectedCityAttractions(city) {
+  if (!japanMap || selectedCity?.code !== city.code) return;
+  const points = [[city.lat, city.lon]];
+  const airport = airportsByCode[city.code];
+  if (airport) points.push([airport.lat, airport.lon]);
+  selectedAttractionMarkers.forEach((marker) => points.push([marker.getLatLng().lat, marker.getLatLng().lng]));
+  const isMobile = window.matchMedia("(max-width: 560px)").matches;
+  japanMap.flyToBounds(points, {
+    paddingTopLeft: [28, 28],
+    paddingBottomRight: isMobile ? [28, 28] : [365, 28],
+    maxZoom: ["OKA", "ISG"].includes(city.code) ? 10 : 11,
+    duration: 0.8,
+  });
+}
+
+async function loadCityAttractions(city) {
+  clearSelectedAttractionMarkers();
+  const attractions = window.JAPAN_ATTRACTIONS?.[city.code] || [];
+  const status = document.querySelector("#cityDealsPanel .city-attraction-status");
+  if (!attractions.length || !status || !japanMap) return;
+  const sequence = attractionLoadSequence;
+  const controller = new AbortController();
+  attractionLookupController = controller;
+  let found = 0;
+  let failed = 0;
+
+  for (const [index, attraction] of attractions.entries()) {
+    if (controller.signal.aborted || sequence !== attractionLoadSequence) return;
+    try {
+      const point = await geocodeAttraction(attraction, controller.signal);
+      if (controller.signal.aborted || sequence !== attractionLoadSequence) return;
+      if (point) {
+        addAttractionMarker(city, attraction, index, point, controller.signal, sequence);
+        found += 1;
+      } else {
+        failed += 1;
+      }
+    } catch (error) {
+      if (controller.signal.aborted || sequence !== attractionLoadSequence) return;
+      failed += 1;
+      console.info(`관광지 위치 확인 실패: ${attraction.nameKo}`, error.message);
+    }
+    status.textContent = `지도에 ${found}/${attractions.length}곳 표시 중`;
+  }
+
+  if (sequence !== attractionLoadSequence) return;
+  status.textContent = found
+    ? `지도에 ${found}곳 표시${failed ? ` · ${failed}곳은 OSM 링크로 확인` : ""}`
+    : "위치를 찾지 못했어요 · OSM 링크에서 확인";
+  if (found) fitSelectedCityAttractions(city);
+}
+
+function showAirportMarker(city) {
+  if (selectedAirportMarker) {
+    japanMap?.removeLayer(selectedAirportMarker);
+    selectedAirportMarker = null;
+  }
+  const airport = airportsByCode[city.code];
+  if (!airport || !japanMap) return null;
+
+  const osmUrl = `https://www.openstreetmap.org/?mlat=${airport.lat}&mlon=${airport.lon}#map=14/${airport.lat}/${airport.lon}`;
+  const icon = window.L.divIcon({
+    className: "airport-marker-shell",
+    html: `<span class="airport-marker"><span aria-hidden="true">✈</span><strong>${city.code}</strong></span>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+  });
+  selectedAirportMarker = window.L.marker([airport.lat, airport.lon], { icon, zIndexOffset: 800 }).addTo(japanMap);
+  selectedAirportMarker.bindTooltip(`${airport.name} · ${city.code}`, { className: "airport-marker-tooltip", direction: "top", offset: [0, -10] });
+  selectedAirportMarker.bindPopup(`<strong>${airport.name} (${city.code})</strong><br /><a href="${osmUrl}" target="_blank" rel="noopener">OpenStreetMap에서 보기 ↗</a>`);
+  return airport;
+}
+
 function showCityDeals(city, { focusMap = true } = {}) {
   selectedCity = city;
   const panel = document.querySelector("#cityDealsPanel");
@@ -593,17 +786,32 @@ function showCityDeals(city, { focusMap = true } = {}) {
     <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
     <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
-  panel.querySelector(".city-panel-list")?.insertAdjacentHTML("beforebegin", renderCityLiveFare(city));
+  panel.querySelector(".city-panel-list")?.insertAdjacentHTML("beforebegin", `${renderCityLiveFare(city)}${renderCityAttractions(city)}`);
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
+  const airport = showAirportMarker(city);
   if (focusMap) {
-    const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
-    japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
+    if (airport && japanMap) {
+      const isMobile = window.matchMedia("(max-width: 560px)").matches;
+      japanMap.flyToBounds([[city.lat, city.lon], [airport.lat, airport.lon]], {
+        paddingTopLeft: [28, 28],
+        paddingBottomRight: isMobile ? [28, 28] : [365, 28],
+        maxZoom: ["OKA", "ISG"].includes(city.code) ? 10 : 11,
+        duration: 0.8,
+      });
+    } else {
+      const cityZoom = ["OKA", "ISG"].includes(city.code) ? 10 : 11;
+      japanMap?.flyTo([city.lat, city.lon], cityZoom, { duration: 0.8, easeLinearity: 0.25 });
+    }
   }
+  loadCityAttractions(city);
 }
 
 function resetMapView() {
   selectedCity = null;
+  clearSelectedAttractionMarkers();
+  if (selectedAirportMarker) japanMap?.removeLayer(selectedAirportMarker);
+  selectedAirportMarker = null;
   document.querySelector("#cityDealsPanel").classList.remove("visible");
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.remove("highlight"));
   document.querySelectorAll(".city-choice").forEach((button) => button.classList.remove("active"));
