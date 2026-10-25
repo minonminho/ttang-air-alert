@@ -75,7 +75,7 @@ let selectedAirportMarker = null;
 const selectedAttractionMarkers = new Map();
 let attractionLookupController = null;
 let attractionLookupSequence = 0;
-let lastNominatimRequestAt = 0;
+let lastGeocodingRequestAt = 0;
 const ATTRACTION_CACHE_KEY = "ttang-osm-attractions-v1";
 const LIVE_FLIGHTS_PER_PAGE = 20;
 let liveFlightResults = [];
@@ -655,23 +655,37 @@ async function geocodeAttraction(attraction, signal) {
   const cacheKey = `${attraction.id}|${attraction.query}`;
   if (cache[cacheKey] && Number.isFinite(cache[cacheKey].lat) && Number.isFinite(cache[cacheKey].lon)) return cache[cacheKey];
 
-  const waitMs = Math.max(0, 1100 - (Date.now() - lastNominatimRequestAt));
+  const waitMs = Math.max(0, 1100 - (Date.now() - lastGeocodingRequestAt));
   if (waitMs) await new Promise((resolve) => window.setTimeout(resolve, waitMs));
   if (signal.aborted) return null;
-  lastNominatimRequestAt = Date.now();
+  lastGeocodingRequestAt = Date.now();
 
-  const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("format", "jsonv2");
+  const url = new URL("https://photon.komoot.io/api/");
   url.searchParams.set("limit", "1");
-  url.searchParams.set("countrycodes", "jp");
-  url.searchParams.set("accept-language", "ja");
+  url.searchParams.set("countrycode", "JP");
+  url.searchParams.set("lang", "ja");
   url.searchParams.set("q", attraction.query);
-  const response = await fetch(url, { signal, headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(`OSM ${response.status}`);
-  const results = await response.json();
-  const result = results[0];
-  if (!result) return null;
-  const point = { lat: Number(result.lat), lon: Number(result.lon) };
+  const requestController = new AbortController();
+  const abortRequest = () => requestController.abort();
+  signal.addEventListener("abort", abortRequest, { once: true });
+  const timeout = window.setTimeout(() => requestController.abort(), 5000);
+  let result;
+  try {
+    const response = await fetch(url, { signal: requestController.signal, headers: { Accept: "application/geo+json, application/json" } });
+    if (!response.ok) throw new Error(`Geocoder HTTP ${response.status}`);
+    const payload = await response.json();
+    result = (payload.features || []).find((feature) => feature.properties?.countrycode?.toUpperCase() === "JP") || payload.features?.[0];
+  } catch (error) {
+    if (signal.aborted) throw error;
+    if (requestController.signal.aborted) throw new Error("위치 검색 시간 초과");
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    signal.removeEventListener("abort", abortRequest);
+  }
+  const coordinates = result?.geometry?.coordinates;
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+  const point = { lat: Number(coordinates[1]), lon: Number(coordinates[0]) };
   if (!Number.isFinite(point.lat) || !Number.isFinite(point.lon)) return null;
   cache[cacheKey] = point;
   saveAttractionCache(cache);
