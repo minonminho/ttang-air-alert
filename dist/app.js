@@ -631,7 +631,13 @@ function renderCityAttractions(city) {
 
 function clearSelectedAttractionMarkers() {
   attractionLoadSequence += 1;
-  selectedAttractionMarkers.forEach((marker) => japanMap?.removeLayer(marker));
+  selectedAttractionMarkers.forEach((marker) => {
+    try {
+      if (japanMap?.hasLayer(marker)) japanMap.removeLayer(marker);
+    } catch (error) {
+      console.warn("기존 관광지 핀 정리 실패", error);
+    }
+  });
   selectedAttractionMarkers.clear();
 }
 
@@ -685,11 +691,16 @@ function fitSelectedCityAttractions(city) {
 }
 
 function loadCityAttractions(city, { focusMap = true } = {}) {
-  const status = document.querySelector("#cityAttractionsPanel .city-attraction-status");
+  let status = null;
   let found = 0;
   let failed = 0;
+  let phase = "상태 표시 준비";
   try {
+    status = document.querySelector("#cityAttractionsPanel .city-attraction-status");
+    if (status) status.textContent = "관광지 위치 표시 중";
+    phase = "기존 핀 정리";
     clearSelectedAttractionMarkers();
+    phase = "관광지 자료 읽기";
     const attractions = window.JAPAN_ATTRACTIONS?.[city.code] || [];
     const coordinates = window.JAPAN_ATTRACTION_COORDINATES?.[city.code] || [];
     if (!attractions.length) {
@@ -706,6 +717,7 @@ function loadCityAttractions(city, { focusMap = true } = {}) {
     }
     const sequence = attractionLoadSequence;
     status.textContent = `관광지 위치 표시 중 · 0/${attractions.length}`;
+    phase = "관광지 핀 생성";
     attractions.forEach((attraction, index) => {
       const point = coordinates[index];
       if (Number.isFinite(point?.lat) && Number.isFinite(point?.lon)) {
@@ -725,15 +737,16 @@ function loadCityAttractions(city, { focusMap = true } = {}) {
     status.textContent = found
       ? `지도에 ${found}곳 표시${failed ? ` · ${failed}곳은 OSM 링크로 확인` : ""}`
       : "저장된 좌표 없음 · OSM 링크에서 확인";
+    phase = "지도 자동 확대";
     if (found && focusMap && !fitSelectedCityAttractions(city)) {
       status.textContent = `지도에 ${found}곳 표시 · 도시 중심으로 이동했습니다`;
     }
   } catch (error) {
-    console.error(`관광지 목록 표시 실패: ${city.name}`, error);
+    console.error(`관광지 목록 표시 실패 (${phase}): ${city.name}`, error);
     if (status) {
       status.textContent = found
-        ? `지도에 ${found}곳 표시 · 일부 목록 처리 중 오류`
-        : "관광지 표시 실패 · OSM 링크로 위치 확인";
+        ? `지도에 ${found}곳 표시 · ${phase} 단계에서 일부 오류`
+        : `관광지 표시 실패 · ${phase} 단계`;
     }
   }
 }
@@ -778,13 +791,7 @@ function showCityDeals(city, { focusMap = true } = {}) {
   panel.classList.add("visible");
   panel.querySelector("#cityPanelClose").addEventListener("click", resetMapView);
   const airport = showAirportMarker(city);
-  try {
-    loadCityAttractions(city, { focusMap });
-  } catch (error) {
-    const status = attractionsPanel.querySelector(".city-attraction-status");
-    if (status) status.textContent = "관광지 표시 중 오류가 발생했습니다";
-    console.error(`관광지 표시 초기화 실패: ${city.name}`, error);
-  }
+  loadCityAttractions(city, { focusMap });
   if (focusMap && !selectedAttractionMarkers.size && japanMap) {
     const bounds = [[city.lat, city.lon]];
     if (airport) bounds.push([airport.lat, airport.lon]);
