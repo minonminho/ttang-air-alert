@@ -74,6 +74,8 @@ let selectedCity = null;
 const markerByCode = new Map();
 let selectedAirportMarker = null;
 const selectedAttractionMarkers = new Map();
+const attractionDetailsCache = new Map();
+let attractionDetailSequence = 0;
 let attractionLoadSequence = 0;
 const LIVE_FLIGHTS_PER_PAGE = 20;
 let liveFlightResults = [];
@@ -654,11 +656,183 @@ function renderCityLiveFare(city) {
 function renderCityAttractions(city) {
   const attractions = window.JAPAN_ATTRACTIONS?.[city.code] || [];
   if (!attractions.length) return "";
-  return `<section class="city-panel-attractions" aria-label="유명 관광지"><div class="city-panel-attractions-heading"><strong>유명 관광지</strong><span class="city-attraction-status">관광지 좌표 불러오는 중</span></div><div class="city-attraction-list">${attractions.map((attraction, index) => `<div class="city-attraction-row"><button class="city-attraction-focus" type="button" data-attraction-index="${index}" disabled><span class="city-attraction-number">${index + 1}</span><span class="city-attraction-name"><strong>${escapeHtml(attraction.nameKo)}</strong><small>${escapeHtml(attraction.nameJa)}</small></span></button><a class="city-attraction-osm" href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener" aria-label="${escapeHtml(attraction.nameKo)} OSM 검색">OSM ↗</a></div>`).join("")}</div></section>`;
+  return `<section class="city-panel-attractions" aria-label="유명 관광지"><div class="city-panel-attractions-heading"><strong>유명 관광지</strong><span class="city-attraction-status">관광지 좌표 불러오는 중</span></div><div class="city-attraction-detail" hidden></div><div class="city-attraction-list">${attractions.map((attraction, index) => `<div class="city-attraction-row"><button class="city-attraction-focus" type="button" data-attraction-index="${index}" disabled><span class="city-attraction-number">${index + 1}</span><span class="city-attraction-name"><strong>${escapeHtml(attraction.nameKo)}</strong><small>${escapeHtml(attraction.nameJa)}</small></span></button><a class="city-attraction-osm" href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener" aria-label="${escapeHtml(attraction.nameKo)} OSM 검색">OSM ↗</a></div>`).join("")}</div></section>`;
+}
+
+function getWikimediaImageUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && /(^|\.)wikimedia\.org$/i.test(url.hostname) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function getWikipediaPageUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && /(^|\.)wikipedia\.org$/i.test(url.hostname) ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function getCommonsPageUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "commons.wikimedia.org" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function getCommonsFilePageUrl(imageUrl) {
+  try {
+    const url = new URL(imageUrl);
+    const parts = url.pathname.split("/");
+    const thumbIndex = parts.indexOf("thumb");
+    const filename = thumbIndex >= 0 ? parts[thumbIndex + 3] : parts.at(-1);
+    if (!filename) return "";
+    const decodedFilename = decodeURIComponent(filename).replaceAll(" ", "_");
+    return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(decodedFilename)}`;
+  } catch {
+    return "";
+  }
+}
+
+async function fetchWikipediaSummary(language, title) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch(`https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const summary = await response.json();
+    return {
+      title: summary.title || title,
+      extract: String(summary.extract || summary.description || "").trim(),
+      imageUrl: getWikimediaImageUrl(summary.thumbnail?.source || summary.originalimage?.source),
+      pageUrl: getWikipediaPageUrl(summary.content_urls?.desktop?.page),
+      language,
+    };
+  } catch (error) {
+    if (error.name !== "AbortError") console.warn(`${language} 위키백과 요약을 불러오지 못했습니다.`, error);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchCommonsAttractionImage(attraction) {
+  const params = new URLSearchParams({
+    action: "query",
+    generator: "search",
+    gsrsearch: `${attraction.nameJa} ${attraction.areaJa}`,
+    gsrnamespace: "6",
+    gsrlimit: "1",
+    prop: "imageinfo",
+    iiprop: "url",
+    iiurlwidth: "960",
+    format: "json",
+    formatversion: "2",
+    origin: "*",
+  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch(`https://commons.wikimedia.org/w/api.php?${params}`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const pages = Array.isArray(data.query?.pages) ? data.query.pages : Object.values(data.query?.pages || {});
+    const image = pages[0]?.imageinfo?.[0];
+    const imageUrl = getWikimediaImageUrl(image?.thumburl || image?.url);
+    return imageUrl ? { imageUrl, pageUrl: getCommonsPageUrl(image?.descriptionurl) || "https://commons.wikimedia.org/" } : null;
+  } catch (error) {
+    if (error.name !== "AbortError") console.warn("Wikimedia Commons 사진 검색에 실패했습니다.", error);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function loadAttractionDetails(attraction) {
+  if (attractionDetailsCache.has(attraction.id)) return attractionDetailsCache.get(attraction.id);
+  const request = (async () => {
+    const [korean, japanese] = await Promise.all([
+      fetchWikipediaSummary("ko", attraction.nameKo),
+      fetchWikipediaSummary("ja", attraction.nameJa),
+    ]);
+    const descriptionSource = [korean, japanese].find((summary) => summary?.extract);
+    let imageSource = [korean, japanese].find((summary) => summary?.imageUrl);
+    let commonsImage = null;
+    if (!imageSource) commonsImage = await fetchCommonsAttractionImage(attraction);
+    const imageUrl = imageSource?.imageUrl || commonsImage?.imageUrl || "";
+    return {
+      description: descriptionSource?.extract || "소개 문서를 찾지 못했어요. 아래 링크에서 장소 정보를 확인해 주세요.",
+      descriptionLanguage: descriptionSource?.language === "ja" ? "일본어 원문" : "한국어",
+      descriptionUrl: descriptionSource?.pageUrl || korean?.pageUrl || japanese?.pageUrl || "",
+      imageUrl,
+      imagePageUrl: commonsImage?.pageUrl || getCommonsFilePageUrl(imageUrl),
+    };
+  })();
+  attractionDetailsCache.set(attraction.id, request);
+  request.then((details) => {
+    if (!details.descriptionUrl && !details.imageUrl) attractionDetailsCache.delete(attraction.id);
+  }).catch(() => attractionDetailsCache.delete(attraction.id));
+  return request;
+}
+
+function renderAttractionDetail(attraction, details) {
+  const description = details.description.length > 240 ? `${details.description.slice(0, 237).trim()}…` : details.description;
+  const image = details.imageUrl
+    ? `<img class="city-attraction-detail-image" src="${escapeHtml(details.imageUrl)}" alt="${escapeHtml(attraction.nameKo)} 사진" />`
+    : `<div class="city-attraction-detail-no-image"><span aria-hidden="true">景</span><span>등록된 사진을 찾지 못했어요</span></div>`;
+  const photoSource = details.imagePageUrl
+    ? `<a href="${escapeHtml(details.imagePageUrl)}" target="_blank" rel="noopener">사진 원본·라이선스 ↗</a>`
+    : "";
+  const descriptionSource = details.descriptionUrl
+    ? `<a href="${escapeHtml(details.descriptionUrl)}" target="_blank" rel="noopener">${details.descriptionLanguage} 출처 ↗</a>`
+    : "";
+  return `<div class="city-attraction-detail-media">${image}</div><div class="city-attraction-detail-copy"><div class="city-attraction-detail-title"><strong>${escapeHtml(attraction.nameKo)}</strong><small>${escapeHtml(attraction.nameJa)} · ${escapeHtml(attraction.areaJa)}</small></div><p>${escapeHtml(description)}</p><div class="city-attraction-detail-sources">${photoSource}${descriptionSource}</div></div>`;
+}
+
+async function showAttractionDetail(city, attraction, index) {
+  const detail = document.querySelector("#cityAttractionsPanel .city-attraction-detail");
+  if (!detail) return;
+  document.querySelectorAll(".city-attraction-focus").forEach((button) => {
+    button.classList.toggle("selected", Number(button.dataset.attractionIndex) === index);
+  });
+  const sequence = ++attractionDetailSequence;
+  detail.hidden = false;
+  detail.innerHTML = `<div class="city-attraction-detail-loading"><span class="city-attraction-detail-spinner" aria-hidden="true"></span><span>${escapeHtml(attraction.nameKo)} 사진과 설명을 불러오는 중</span></div>`;
+  try {
+    const details = await loadAttractionDetails(attraction);
+    if (sequence !== attractionDetailSequence || selectedCity?.code !== city.code || !detail.isConnected) return;
+    detail.innerHTML = renderAttractionDetail(attraction, details);
+    const image = detail.querySelector(".city-attraction-detail-image");
+    image?.addEventListener("error", () => {
+      const placeholder = document.createElement("div");
+      placeholder.className = "city-attraction-detail-no-image";
+      placeholder.innerHTML = `<span aria-hidden="true">景</span><span>사진을 불러오지 못했어요</span>`;
+      image.replaceWith(placeholder);
+    }, { once: true });
+    detail.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  } catch (error) {
+    console.error(`관광지 상세 정보를 불러오지 못했습니다: ${attraction.nameKo}`, error);
+    if (sequence === attractionDetailSequence && detail.isConnected) {
+      detail.innerHTML = `<div class="city-attraction-detail-unavailable">사진과 설명을 불러오지 못했어요. <a href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener">OSM에서 위치 확인 ↗</a></div>`;
+    }
+  }
 }
 
 function clearSelectedAttractionMarkers() {
   attractionLoadSequence += 1;
+  attractionDetailSequence += 1;
   selectedAttractionMarkers.forEach((marker) => {
     try {
       if (japanMap?.hasLayer(marker)) japanMap.removeLayer(marker);
@@ -681,13 +855,19 @@ function addAttractionMarker(city, attraction, index, point, sequence) {
   marker.bindTooltip(attraction.nameKo, { className: "attraction-marker-tooltip", direction: "top", offset: [0, -10] });
   marker.bindPopup(`<strong>${escapeHtml(attraction.nameKo)}</strong><br /><span>${escapeHtml(attraction.nameJa)} · ${escapeHtml(attraction.areaJa)}</span><br /><a href="${escapeHtml(attraction.osmUrl)}" target="_blank" rel="noopener">OpenStreetMap에서 보기 ↗</a>`);
   selectedAttractionMarkers.set(index, marker);
+  marker.on("click", () => showAttractionDetail(city, attraction, index));
   const button = document.querySelector(`#cityAttractionsPanel [data-attraction-index="${index}"]`);
   if (button) {
     button.disabled = false;
     button.addEventListener("click", () => {
       if (sequence !== attractionLoadSequence) return;
-      japanMap?.flyTo(marker.getLatLng(), Math.max(japanMap.getZoom(), 14), { duration: 0.6 });
-      marker.openPopup();
+      showAttractionDetail(city, attraction, index);
+      try {
+        japanMap?.flyTo(marker.getLatLng(), Math.max(japanMap.getZoom(), 14), { duration: 0.6 });
+        marker.openPopup();
+      } catch (error) {
+        console.warn(`관광지 위치로 이동하지 못했습니다: ${attraction.nameKo}`, error);
+      }
     });
   }
 }
