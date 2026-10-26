@@ -67,6 +67,7 @@ const dealSources = [
 let toastTimer;
 let todayDeals = [];
 let activeSource = "all";
+let activeDealDuration = "all";
 let japanMap = null;
 let japanBounds = [];
 let selectedCity = null;
@@ -79,6 +80,7 @@ let liveFlightResults = [];
 let liveFlightPage = 1;
 let liveFlightCity = "all";
 let liveFlightAirline = "all";
+let liveFlightDuration = "all";
 let renderedLiveFlightResultCount = -1;
 let liveFlightUpdatedAt = null;
 
@@ -285,8 +287,17 @@ function getGroupAirlines(group) {
   return [...new Set(names.map((airline) => airline.trim()).filter(Boolean))];
 }
 
+function filterFlightSchedulesByDuration(groups, duration = liveFlightDuration) {
+  if (duration === "all") return groups;
+  const days = Number(duration);
+  return groups.map((group) => ({
+    ...group,
+    schedules: group.schedules.filter((schedule) => Number(schedule.tripDays) === days),
+  })).filter((group) => group.schedules.length > 0);
+}
+
 function getFilteredLiveFlightGroups(groups = groupFlightResults(liveFlightResults)) {
-  return groups.filter((group) => {
+  return filterFlightSchedulesByDuration(groups).filter((group) => {
     const cityMatch = liveFlightCity === "all" || group.destinationCode === liveFlightCity;
     const airlineMatch = liveFlightAirline === "all" || getGroupAirlines(group).includes(liveFlightAirline);
     return cityMatch && airlineMatch;
@@ -328,7 +339,7 @@ function renderLiveFlightList() {
 }
 
 function renderAllAutomationResults(job, container) {
-  const groups = groupFlightResults(job.results || []);
+  const groups = filterFlightSchedulesByDuration(groupFlightResults(job.results || []));
   const visibleGroups = groups.slice(0, LIVE_FLIGHTS_PER_PAGE);
   container.innerHTML = visibleGroups.length ? visibleGroups.map(renderLiveFlightCard).join("") : '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
 }
@@ -565,20 +576,34 @@ function renderDealSourceMeta(deal) {
   return `<span class="deal-source-tag grouped">${options.length}개 가격</span> ${sources.join(" · ")}`;
 }
 
+function getDealTripDays(deal) {
+  if (/편도/.test(String(deal.tripType || ""))) return null;
+  const from = parseDealDate(deal.fromDate);
+  const to = parseDealDate(deal.toDate);
+  if (!from || !to || to < from) return null;
+  const utcDay = (date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+  return utcDay(to) - utcDay(from) + 1;
+}
+
+function getDurationFilteredDeals(deals) {
+  return activeDealDuration === "all" ? deals : deals.filter((deal) => getDealTripDays(deal) === Number(activeDealDuration));
+}
+
 function getVisibleDeals() {
-  const deals = activeSource === "all" ? todayDeals : todayDeals.filter((deal) => getDealSourceId(deal) === activeSource);
+  const deals = getDurationFilteredDeals(activeSource === "all" ? todayDeals : todayDeals.filter((deal) => getDealSourceId(deal) === activeSource));
   return activeSource === "all" ? groupDeals(deals) : deals;
 }
 
 function renderSourceFilters() {
   const container = document.querySelector("#sourceFilters");
   if (!container) return;
+  const durationDeals = getDurationFilteredDeals(todayDeals);
   const buttons = [
-    { id: "all", label: "ALL", count: groupDeals(todayDeals).length },
+    { id: "all", label: "ALL", count: groupDeals(durationDeals).length },
     ...dealSources.map((source) => ({
       id: source.id,
       label: source.label,
-      count: todayDeals.filter((deal) => getDealSourceId(deal) === source.id).length,
+      count: durationDeals.filter((deal) => getDealSourceId(deal) === source.id).length,
     })),
   ];
   container.innerHTML = buttons.map((source) => `
@@ -913,6 +938,8 @@ async function refreshTodayDeals() {
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
 document.querySelector("#liveCityFilter").addEventListener("change", (event) => { liveFlightCity = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveAirlineFilter").addEventListener("change", (event) => { liveFlightAirline = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
+document.querySelector("#liveDurationFilter").addEventListener("change", (event) => { liveFlightDuration = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); });
+document.querySelector("#dealDurationFilter").addEventListener("change", (event) => { activeDealDuration = event.target.value; renderSourceFilters(); renderDeals(getVisibleDeals()); if (selectedCity) showCityDeals(selectedCity); });
 renderCityPicker();
 renderSourceFilters();
 setupMap();
