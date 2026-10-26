@@ -350,16 +350,19 @@ function setAllFlightStatus(message) {
   });
 }
 
+function refreshSelectedCityLiveFare() {
+  if (!selectedCity) return;
+  const fareCard = document.querySelector("#cityDealsPanel .city-panel-live-fare");
+  if (fareCard) fareCard.outerHTML = renderCityLiveFare(selectedCity);
+}
+
 function renderAllFlightResults(job) {
   liveFlightResults = Array.isArray(job.results) ? job.results : [];
   liveFlightUpdatedAt = job.updatedAt || liveFlightUpdatedAt;
   renderedLiveFlightResultCount = liveFlightResults.length;
   renderLiveFlightList();
   document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults(job, container));
-  if (selectedCity) {
-    const fareCard = document.querySelector("#cityDealsPanel .city-panel-live-fare");
-    if (fareCard) fareCard.outerHTML = renderCityLiveFare(selectedCity);
-  }
+  refreshSelectedCityLiveFare();
 }
 
 function openAllCitySearchPanel(mode = "quick") {
@@ -636,10 +639,10 @@ function renderDeals(deals) {
 }
 
 function renderCityLiveFare(city) {
-  const lowest = groupFlightResults(liveFlightResults)
+  const lowest = filterFlightSchedulesByDuration(groupFlightResults(liveFlightResults))
     .filter((group) => group.destinationCode === city.code)
     .sort((left, right) => left.price - right.price)[0];
-  if (!lowest) return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><p class="city-panel-live-empty">아직 이 도시의 실시간 항공권 결과가 없습니다.</p></section>`;
+  if (!lowest) return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><p class="city-panel-live-empty">선택한 기간에 맞는 이 도시의 항공권 결과가 없습니다.</p></section>`;
   const schedule = lowest.schedules[0];
   const scheduleText = schedule
     ? `${schedule.tripDays}일 일정 · ${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}`
@@ -938,7 +941,7 @@ async function refreshTodayDeals() {
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
 document.querySelector("#liveCityFilter").addEventListener("change", (event) => { liveFlightCity = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveAirlineFilter").addEventListener("change", (event) => { liveFlightAirline = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
-document.querySelector("#liveDurationFilter").addEventListener("change", (event) => { liveFlightDuration = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); });
+document.querySelector("#liveDurationFilter").addEventListener("change", (event) => { liveFlightDuration = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); refreshSelectedCityLiveFare(); });
 document.querySelector("#dealDurationFilter").addEventListener("change", (event) => { activeDealDuration = event.target.value; renderSourceFilters(); renderDeals(getVisibleDeals()); if (selectedCity) showCityDeals(selectedCity); });
 renderCityPicker();
 renderSourceFilters();
