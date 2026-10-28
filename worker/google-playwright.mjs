@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { getFreshFlightCacheEntry, loadFlightCache, makeFlightCacheKey, saveFlightCache } from "./flight-cache.mjs";
 import { isTransientSearchError, retrySearchOnce, withSearchDeadline } from "./search-recovery.mjs";
+import { isNonstopFlightDescription, isNonstopRoundTrip } from "./nonstop.mjs";
 
 const GOOGLE_BASE_URL = "https://www.google.com/travel/flights";
 const DEPARTURE_CODE = "ICN";
@@ -55,7 +56,7 @@ function includesWeekend(start, end) {
 export function makeSearchUrl(destinationCode, departureDate, returnDate) {
   const url = new URL(GOOGLE_BASE_URL);
   // Use the public search page; no private API or encoded internal request.
-  url.searchParams.set("q", `Round trip flights from ${DEPARTURE_CODE} to ${destinationCode} departing ${dateKey(departureDate)} returning ${dateKey(returnDate)} for 1 adult economy`);
+  url.searchParams.set("q", `Nonstop round trip flights from ${DEPARTURE_CODE} to ${destinationCode} departing ${dateKey(departureDate)} returning ${dateKey(returnDate)} for 1 adult economy`);
   url.searchParams.set("hl", "en");
   url.searchParams.set("curr", "KRW");
   return url.href;
@@ -176,6 +177,7 @@ export async function readGoogleFlightRows(page) {
   const unique = new Map();
   for (const row of rows) {
     if (!Number.isFinite(row.price) || row.price <= 0 || row.price >= 10000000) continue;
+    if (!isNonstopFlightDescription(row.aria)) continue;
     // Stable identity comes from the rendered flight number, route and time, not prices/emissions.
     const description = row.aria.replace(/^(?:From\s+)?[\d,]+ South Korean won round trip total\.\s*/i, '');
     const schedule = description.match(/Leaves (.*?)\. Total duration/)?.[1] || description;
@@ -223,6 +225,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
         outbound: { description: outbound.aria, operation: outbound.operation },
         inbound: { description: inbound.aria, operation: inbound.operation },
         priceType: 'round-trip',
+        nonstop: true,
         selectionScope: `${departureSampleSize}-cheapest-departures`,
       });
     }
@@ -294,9 +297,9 @@ export async function searchGoogle({
       const departure = parseDate(trip.departureDate);
       const returnDate = parseDate(trip.returnDate);
       const searchUrl = makeSearchUrl(destinationCode, departure, returnDate);
-      const cacheKey = `google-v2|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
+      const cacheKey = `google-v3-nonstop|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
       const cached = useCache ? getFreshFlightCacheEntry(cache, cacheKey) : null;
-      let options = cached?.options || null;
+      let options = cached?.options ? cached.options.filter(isNonstopRoundTrip) : null;
       const cacheHit = Boolean(options);
       onProgress({ current: index + 1, total: trips.length, searchedTrips: searchedTrips + 1, phase, cached: cacheHit, trip, searchUrl });
 
@@ -325,6 +328,8 @@ export async function searchGoogle({
           if (consecutiveFailures >= 3) throw new Error(`연속 3개 일정에서 결과를 읽지 못해 ${destinationCode} 검색을 중단했습니다. ${error.message}`);
           continue;
         }
+        // Never store a connecting itinerary, including a stale or mislabelled Google row.
+        options = options.filter(isNonstopRoundTrip);
         cache.entries[cacheKey] = { checkedAt: Date.now(), options };
         cacheDirty = true;
       }
@@ -367,7 +372,7 @@ export async function searchGoogle({
     return {
       destinationCode,
       destination: DESTINATIONS.get(destinationCode),
-      criteria: { tripDays: TRIP_DAYS, weekendRequired: true, months, minPrice: MIN_PRICE, topResults: TOP_RESULTS, allTrips: includeAllResults, mode, candidateTrips: searched.length, fullCandidateTrips: allTrips.length, refinementWeeks: mode === "quick" ? QUICK_REFINE_WEEKS : 0 },
+      criteria: { tripDays: TRIP_DAYS, nonstopOnly: true, weekendRequired: true, months, minPrice: MIN_PRICE, topResults: TOP_RESULTS, allTrips: includeAllResults, mode, candidateTrips: searched.length, fullCandidateTrips: allTrips.length, refinementWeeks: mode === "quick" ? QUICK_REFINE_WEEKS : 0 },
       searchedTrips,
       tripErrors,
       results: includeAllResults ? results : [...bestByDuration.values()].flat(),
