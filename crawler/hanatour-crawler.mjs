@@ -78,7 +78,8 @@ function parseDeal(item, departureCode) {
     arrivalCode: outbound.arrAptCode || "",
     airline: item.tktAlName || item.tktAlCode || "",
     airlineCode: item.tktAlCode || item.tktAl || "",
-    nonstop: Array.isArray(outbound.fltLst) && outbound.fltLst.length <= 1,
+    nonstop: itinerary.length === (item.itnrTypeCd === "OW" ? 1 : 2)
+      && itinerary.every((leg) => Array.isArray(leg.fltLst) && leg.fltLst.length === 1),
     fromDate: departureDate,
     toDate: arrivalDate,
     tripType: item.itnrTypeCd === "OW" ? "편도" : "왕복",
