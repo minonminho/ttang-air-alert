@@ -23,7 +23,7 @@ const crawls = await Promise.allSettled([
   crawlYbtour({ departureCode: "ICN", maxPrice: 300000 }),
 ]);
 const deals = crawls.flatMap((result, index) => {
-  if (result.status === "fulfilled") return result.value;
+  if (result.status === "fulfilled") return result.value.filter((deal) => deal.nonstop === true);
   console.warn(`Skipped ${sources[index].label}: ${result.reason?.message || result.reason}`);
   return [];
 }).sort((left, right) => left.price - right.price);
@@ -35,7 +35,7 @@ await mkdir(dirname(outputPath), { recursive: true });
 const snapshot = {
   fetchedAt: new Date().toISOString(),
   sources,
-  criteria: { departureCode: "ICN", maxPriceExclusive: 300000 },
+  criteria: { departureCode: "ICN", maxPriceExclusive: 300000, nonstopOnly: true },
   deals,
 };
 
