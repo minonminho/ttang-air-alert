@@ -23,7 +23,7 @@ test('all scope includes today for the 1am KST schedule and skips already-depart
 });
 
 test('merge sorts prices and marks missing or unfinished cities as partial', () => {
-  const row = (code,price) => ({destinationCode:code,price,departureDate:'2026-11-28',returnDate:'2026-11-30',operationKey:'route'});
+  const row = (code,price) => ({destinationCode:code,price,departureDate:'2026-11-28',returnDate:'2026-11-30',operationKey:'route',outbound:{description:'Nonstop flight with Jin Air.'},inbound:{description:'Nonstop flight with Jin Air.'}});
   const result = mergeSearchResults([
     {runId:'run',citySummaries:[{destinationCode:'NRT',status:'succeeded'}],results:[row('NRT',300000),row('NRT',300000)]},
     {runId:'run',citySummaries:[],results:[row('HKD',200000)]},
