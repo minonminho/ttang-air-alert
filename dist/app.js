@@ -193,10 +193,17 @@ function inferAirline(value) {
   return knownAirlines.find((airline) => text.toLowerCase().includes(airline.toLowerCase())) || "기타";
 }
 
+function isNonstopLiveFlight(result) {
+  // Old published snapshots may still contain connecting flights: verify both legs.
+  const isNonstopLeg = (leg) => /\bnon[\s-]?stop\s+flight\b/i.test(String(leg?.description || ""))
+    && !/\b(?:\d+\s+stops?|connecting\s+flight|one\s+stop)\b/i.test(String(leg?.description || ""));
+  return isNonstopLeg(result?.outbound) && isNonstopLeg(result?.inbound);
+}
+
 function groupFlightResults(results = []) {
   const groups = new Map();
   for (const result of results) {
-    if (Number(result.price) < 100000) continue;
+    if (Number(result.price) < 100000 || !isNonstopLiveFlight(result)) continue;
     const operationKey = result.operationKey || normalizeFlightOperation(result.label);
     const key = `${result.destinationCode}|${result.price}|${operationKey}`;
     const group = groups.get(key) || {
@@ -591,7 +598,9 @@ function getDealTripDays(deal) {
 }
 
 function getDurationFilteredDeals(deals) {
-  return activeDealDuration === "all" ? deals : deals.filter((deal) => getDealTripDays(deal) === Number(activeDealDuration));
+  // Only display deals whose provider explicitly identifies them as nonstop.
+  const nonstopDeals = deals.filter((deal) => deal.nonstop === true);
+  return activeDealDuration === "all" ? nonstopDeals : nonstopDeals.filter((deal) => getDealTripDays(deal) === Number(activeDealDuration));
 }
 
 function getVisibleDeals() {
