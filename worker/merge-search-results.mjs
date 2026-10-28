@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DESTINATIONS } from './google-playwright.mjs';
+import { isNonstopRoundTrip } from './nonstop.mjs';
 
 export function mergeSearchResults(snapshots, expectedCodes, runId) {
   const errors = snapshots.flatMap((snapshot) => snapshot.errors || []);
@@ -11,6 +12,7 @@ export function mergeSearchResults(snapshots, expectedCodes, runId) {
     if (runId && snapshot.runId !== runId) throw new Error('검색 결과의 실행 ID가 일치하지 않습니다.');
     for (const result of snapshot.results || []) {
       if (!expectedCodes.includes(result.destinationCode)) throw new Error('예상하지 않은 도시 결과입니다.');
+      if (!isNonstopRoundTrip(result)) continue;
       records.set([result.destinationCode, result.departureDate, result.returnDate, result.operationKey, result.price].join('|'), result);
     }
   }

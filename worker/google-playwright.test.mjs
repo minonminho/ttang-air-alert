@@ -47,7 +47,8 @@ test('public URL keeps exact airports, round-trip dates and KRW', () => {
   assert.equal(url.origin, 'https://www.google.com');
   assert.equal(url.searchParams.get('curr'), 'KRW');
   assert.match(url.searchParams.get('q'), /ICN to HKD departing 2026-11-06 returning 2026-11-08/);
-  assert.match(url.searchParams.get('q'), /Round trip/);
+  assert.match(url.searchParams.get('q'), /round trip/i);
+  assert.match(url.searchParams.get('q'), /Nonstop/);
 });
 
 test('quick mode inspects fewer outgoing flights while full mode keeps five', () => {

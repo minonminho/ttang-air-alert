@@ -26,6 +26,7 @@ function loadBrowserFunctions() {
     'function formatPrice(value) { return "KRW " + value; }',
     'function escapeHtml(value) { return String(value); }',
     'function formatLiveRefreshTime() { return "latest"; }',
+    extract("isNonstopLiveFlight", "groupFlightResults"),
     extract("groupFlightResults", "parseFlightLeg"),
     extract("filterFlightSchedulesByDuration", "getFilteredLiveFlightGroups"),
     extract("parseDealDate", "formatDealDate"),
@@ -45,6 +46,8 @@ const makeFlight = (tripDays, overrides = {}) => ({
   returnDate: "2026-11-" + String(tripDays).padStart(2, "0"),
   tripDays,
   airline: "Sample Air",
+  outbound: { description: "Nonstop flight with Sample Air. Leaves Incheon at 3:15 PM." },
+  inbound: { description: "Nonstop flight with Sample Air. Leaves Narita at 5:15 PM." },
   url: "https://example.com/flight/" + tripDays,
   ...overrides,
 });
@@ -101,6 +104,7 @@ test("deal duration uses inclusive calendar days across month and year boundarie
     { fromDate: "2026-11-01", toDate: "2026-11-06", tripType: "왕복" },
     { fromDate: "2026-11-01", toDate: "2026-11-06", tripType: "편도" },
   ];
+  deals.forEach((deal) => { deal.nonstop = true; });
   assert.equal(helper.getDealTripDays(deals[0]), 4);
   assert.equal(helper.getDealTripDays(deals[4]), null);
   for (const days of [3, 4, 5, 6]) {
@@ -113,12 +117,27 @@ test("deal duration uses inclusive calendar days across month and year boundarie
   assert.equal(helper.getDurationFilteredDeals(deals).length, 5);
 });
 
+test("unverified and connecting flights are excluded from live groups and deals", () => {
+  const helper = loadBrowserFunctions();
+  const direct = makeFlight(3);
+  const connecting = makeFlight(3, { price: 120000, outbound: { description: "1 stop flight with Sample Air." } });
+  const unknown = makeFlight(3, { price: 130000, inbound: null });
+  assert.equal(helper.groupFlightResults([direct, connecting, unknown]).length, 1);
+  assert.equal(helper.groupFlightResults([direct, connecting, unknown])[0].price, 220000);
+  const fares = [
+    { nonstop: true, fromDate: "2026-11-01", toDate: "2026-11-03" },
+    { nonstop: false, fromDate: "2026-11-01", toDate: "2026-11-03" },
+    { fromDate: "2026-11-01", toDate: "2026-11-03" },
+  ];
+  assert.equal(helper.getDurationFilteredDeals(fares).length, 1);
+});
+
 test("published page exposes both duration filters and versioned assets", () => {
   assert.match(htmlSource, /id="liveDurationFilter"/);
   assert.match(htmlSource, /id="dealDurationFilter"/);
   for (const days of ["3", "4", "5", "6"]) {
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
   }
-  assert.match(htmlSource, /app\.js\?v=flight-duration-20261026/);
+  assert.match(htmlSource, /app\.js\?v=nonstop-only-20261029/);
   assert.match(htmlSource, /styles\.css\?v=flight-duration-20261026/);
 });
