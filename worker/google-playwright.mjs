@@ -146,6 +146,7 @@ function failureFromPage(text) {
 
 async function waitForFlightPrices(page, timeoutMs, networkEvents, stage = 'departure-results') {
   const deadline = Date.now() + timeoutMs;
+  let backendReloads = 0;
   while (Date.now() < deadline) {
     const text = await page.locator("body").innerText();
     const failure = failureFromPage(text);
@@ -153,6 +154,15 @@ async function waitForFlightPrices(page, timeoutMs, networkEvents, stage = 'depa
     // Google shows "No results returned" even when its shopping API failed.
     // Treat the explicit Oops/Reload screen as transient, never as a valid empty fare.
     if (isFlightBackendError(text)) {
+      // Google offers a normal, public Reload action for a failed shopping response.
+      if (backendReloads++ === 0) {
+        const reload = page.getByText(/^Reload$/).first();
+        if (await reload.count()) {
+          await reload.click({ timeout: 3000 }).catch(() => {});
+          await page.waitForTimeout(1000);
+          continue;
+        }
+      }
       const error = new Error(`Google Flights 데이터 요청 오류입니다. 단계: ${stage}. 화면에서 다시 시도를 요청했습니다.`);
       error.code = 'FLIGHT_RESULTS_TIMEOUT';
       error.stage = stage;
