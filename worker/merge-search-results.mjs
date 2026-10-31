@@ -18,7 +18,7 @@ export function mergeSearchResults(snapshots, expectedCodes, runId) {
   }
   for (const code of expectedCodes) {
     if (!summaries.some((summary) => (summary.routeId || summary.destinationCode) === code)) {
-      errors.push({ routeId:code, error:'작업이 완료되지 않았거나 결과 파일이 누락됐습니다.' });
+      errors.push({ routeId:code, destinationCode: SEARCH_ROUTES.get(code)?.destinationCode || code, error:'작업이 완료되지 않았거나 결과 파일이 누락됐습니다.' });
     }
   }
   const results = [...records.values()].sort((a,b) => a.price - b.price);
