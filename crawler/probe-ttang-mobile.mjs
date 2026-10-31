@@ -15,17 +15,17 @@ for (const url of urls) {
       },
     });
     const html = await response.text();
-    const title = html.match(/<title[^>]*>([^<]+)<\\/title>/i)?.[1] ?? "";
-    const visible = html.replace(/<script\\b[\\s\\S]*?<\\/script>/gi, "")
-      .replace(/<style\\b[\\s\\S]*?<\\/style>/gi, "")
-      .replace(/<[^>]+>/g," ").replace(/\\s+/g," ").slice(0, 350);
+    const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? "";
+    const visible = html.replace(/<script\b[\s\S]*?<\/script>/gi, "")
+      .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g," ").replace(/\s+/g," ").slice(0, 350);
     const indicators = {
-      tableRows: (html.match(/<tr\\b/gi)||[]).length,
-      listItems: (html.match(/<li\\b/gi)||[]).length,
+      tableRows: (html.match(/<tr\b/gi)||[]).length,
+      listItems: (html.match(/<li\b/gi)||[]).length,
       dataMasterId: (html.match(/data-masterId/gi)||[]).length,
       nonstop: (html.match(/직항|nonstop/gi)||[]).length,
       KRW: (html.match(/원|₩/g)||[]).length,
-      noFares: /총\\s*0개\\s*운임|0개\\s*항공사/.test(visible),
+      noFares: /총\s*0개\s*운임|0개\s*항공사/.test(visible),
     };
     console.log(JSON.stringify({url,status:response.status,redirected:response.redirected,finalUrl:response.url,length:html.length,title,indicators,preview:visible}));
   } catch (err) {
