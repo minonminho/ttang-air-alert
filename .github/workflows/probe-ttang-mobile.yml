@@ -17,3 +17,11 @@ jobs:
         with:
           node-version: 22
       - run: node crawler/probe-ttang-mobile.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-ttang-html-probe
+          path: crawler/probe-output/
+          retention-days: 1
+          if-no-files-found: ignore
