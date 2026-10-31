@@ -147,7 +147,7 @@ test("published page exposes both duration filters and versioned assets", () => 
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
   }
   assert.match(htmlSource, /app\.js\?v=gimpo-origin-20261031/);
-  assert.match(htmlSource, /styles\.css\?v=flight-duration-20261026/);
+  assert.match(htmlSource, /styles\.css\?v=gimpo-origin-20261031/);
 });
 
 test('origin selection separates ICN and GMP flights and preserves Tokyo city mapping', () => {
