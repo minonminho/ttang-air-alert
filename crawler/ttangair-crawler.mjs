@@ -12,7 +12,7 @@ const DEFAULT_MAX_PRICE = 300000;
 const JAPAN_AIRPORTS = new Set([
   "NRT","HND","KIX","NGO","FUK","CTS","HKD","OBO","AOJ","SDJ","KIJ","IBR",
   "FSZ","KMQ","OKJ","YGJ","HIJ","TAK","MYJ","HSG","NGS","OIT","KMJ","KMI",
-  "KOJ","OKA","ISG","UKB","ITM","TOY",
+  "KOJ","OKA","ISG","UKB","ITM","TOY","GAJ","TTJ","IWK","UBJ","SHM","TKS","AKJ","ASJ","KUH","MMB","MMY",
 ]);
 
 function pad(number) { return String(number).padStart(2, "0"); }
@@ -131,7 +131,7 @@ export function parseMobileOffers(items, {
       gubun: item.gubun || "", reservationUrl: bookingUrl(kind,item.departureDate),
       sourceUrl: isWindow ? TODAY_URL : PROMOTION_URL,
     };
-    const key = [deal.collection,deal.departureCode,deal.arrivalCode,deal.masterId,fromDate,toDate,deal.price].join("|");
+    const key = [deal.collection,deal.departureCode,deal.arrivalCode,deal.masterId,fromDate,toDate,deal.durationDays].join("|");
     if (!lowest.has(key) || price < lowest.get(key).price) lowest.set(key,deal);
   }
   return [...lowest.values()].sort((a,b) => a.price-b.price);
@@ -173,7 +173,7 @@ export async function crawlTtangAir({
   const calendarForm = getSearchForm(calendarHtml);
   const today = parseMobileOffers(await fetchOffers(TODAY_ENDPOINT,TODAY_URL,todayForm),{...options,kind:"today"});
   const results = new Map();
-  for (const item of today) results.set([item.collection,item.departureCode,item.arrivalCode,item.masterId,item.fromDate,item.toDate,item.price].join("|"),item);
+  for (const item of today) results.set([item.collection,item.departureCode,item.arrivalCode,item.masterId,item.fromDate,item.toDate,item.durationDays].join("|"),item);
   const days = datesInRange(startDate,endDate,maxDays);
   console.log("[ttang] today-open: " + today.length + " Japan direct fares; calendar: " + days.length + " departure days");
   for (const [index, date] of days.entries()) {
