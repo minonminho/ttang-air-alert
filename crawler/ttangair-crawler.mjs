@@ -79,6 +79,12 @@ function isJapaneseAirport(item) {
   // Promotion API supplies 'A7', the today-open API leaves the region empty.
   return item.natOpClass === "A7" || (!item.natOpClass && JAPAN_AIRPORTS.has(item.arrCityCode));
 }
+function parseDurationDays(value) {
+  const text = String(value || "").trim();
+  const nightDays = text.match(/\d+박\s*(\d+)일/);
+  const days = Number(nightDays?.[1] || (/^\d+$/.test(text) ? text : 0));
+  return Number.isInteger(days) && days > 0 && days <= 31 ? days : null;
+}
 function bookingUrl(kind, departureDate) {
   if (kind === "today") return TODAY_URL;
   const url = new URL(PROMOTION_URL);
@@ -118,6 +124,7 @@ export function parseMobileOffers(items, {
       arrival: item.arrCityDesc || item.arrCityCode, arrivalCode: item.arrCityCode,
       airline: item.tktCarDesc || item.tktCar || "", airlineCode: item.tktCar || "",
       nonstop: true, fromDate, toDate,
+      durationDays: parseDurationDays(item.tripDay),
       tripType: isWindow ? "왕복 · 출발 가능 기간" : "왕복",
       price, minimumPassengers: Math.max(1,Number(item.minimumCnt) || 1),
       masterId: String(item.masterId || item.hanaFareId || ""),
@@ -155,7 +162,7 @@ function delay(ms) { return new Promise((resolve)=>setTimeout(resolve,ms)); }
 // The site returns every matching fare inside XML/JSON, irrespective of its visible page-size=20.
 export async function crawlTtangAir({
   departureCodes = ["ICN","GMP"], departureCode, maxPrice = DEFAULT_MAX_PRICE,
-  startDate = koreaToday(), maxDays = Infinity, delayMs = 650,
+  startDate = koreaToday(), maxDays = Infinity, delayMs = 1000,
 } = {}) {
   if (departureCode) departureCodes = [departureCode];
   const endDate = threeMonthEnd(startDate);
