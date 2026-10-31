@@ -1,1 +1,1 @@
-Run a two-city Google Flights test with same-day date handling fixed.
+Run a two-city Google Flights smoke test after visible fare detection fix (2026-10-31).
