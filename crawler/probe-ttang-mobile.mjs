@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 // Read-only diagnostics for the official, publicly linked Ttang mobile pages.
 // Requests are intentionally sequential, bounded and never retry 403 responses.
 const urls = [
@@ -15,6 +16,10 @@ for (const url of urls) {
       },
     });
     const html = await response.text();
+    if (response.ok) {
+      await fs.mkdir("crawler/probe-output", {recursive:true});
+      await fs.writeFile(`crawler/probe-output/${url.includes("today.do") ? "today" : "index"}.html`, html);
+    }
     const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? "";
     const visible = html.replace(/<script\b[\s\S]*?<\/script>/gi, "")
       .replace(/<style\b[\s\S]*?<\/style>/gi, "")
