@@ -17,6 +17,10 @@ jobs:
         with:
           node-version: 22
       - run: node crawler/probe-ttang-mobile.mjs
+      - name: Smoke-test mobile Ttang parser on two departure dates
+        run: |
+          node --input-type=module -e 'import { crawlTtangAir } from "./crawler/ttangair-crawler.mjs"; const deals = await crawlTtangAir({maxDays:2}); console.log(JSON.stringify({total:deals.length,today:deals.filter(x=>x.collection==="today-open").length,calendar:deals.filter(x=>x.collection==="promotion-calendar").length,nonstop:deals.every(x=>x.nonstop),prices:deals.slice(0,5).map(x=>x.price)}));'
+
 
       - uses: actions/upload-artifact@v4
         if: always()
