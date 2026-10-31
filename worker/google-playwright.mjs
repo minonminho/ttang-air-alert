@@ -252,9 +252,26 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
       }
       if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
+      // Google sometimes leaves history on the *returning* results page.
+      // A returning fare must never be mistaken for an outbound option.
+      if (await page.getByText(/(?:Top|Other) returning flights|Choose return to/i).count()) {
+        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
+      }
     }
-    const currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
-    if (!currentOutbound) throw new Error('Google Flights 결과가 변경되어 가는 편을 다시 확인해야 합니다.');
+    let currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
+    if (!currentOutbound && outboundIndex > 0) {
+      // An outbound page may have rerendered while going back. Re-open the exact
+      // search once rather than failing the whole itinerary or clicking a return row.
+      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
+      currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
+    }
+    if (!currentOutbound) {
+      const error = new Error('Google Flights 출발 항공편 목록이 변경되어 다시 검색해야 합니다.');
+      error.code = 'FLIGHT_RESULTS_TIMEOUT';
+      throw error;
+    }
     if (currentOutbound.ariaLabel) {
       await page.locator('li').filter({ has: page.getByRole('link', { name: currentOutbound.ariaLabel, exact: true }) }).first().click();
     } else {
