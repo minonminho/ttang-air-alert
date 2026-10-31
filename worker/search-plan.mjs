@@ -1,9 +1,9 @@
 import { pathToFileURL } from 'node:url';
-import { DESTINATIONS } from './google-playwright.mjs';
+import { SEARCH_ROUTES } from './routes.mjs';
 
 export function createSearchPlan(scope = 'all') {
-  const codes = scope === 'test' ? ['NRT', 'HKD'] : [...DESTINATIONS.keys()];
-  const count = scope === 'test' ? 2 : 6;
+  const codes = scope === 'test' ? ['NRT', 'HKD', 'GMP-HND', 'GMP-KIX'] : [...SEARCH_ROUTES.keys()];
+  const count = scope === 'test' ? 4 : 6;
   const groups = Array.from({length:count}, () => []);
   codes.forEach((code, index) => groups[index % count].push(code));
   return { include:groups.map((group, index) => ({ shard:String(index + 1), cities:group.join(',') })) };
