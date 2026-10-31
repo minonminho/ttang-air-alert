@@ -521,10 +521,12 @@ function formatDealDate(value) {
 }
 
 function formatPeriod(deal) {
-  return `${formatDealDate(deal.fromDate)} ~ ${formatDealDate(deal.toDate)}`;
+  const range = `${formatDealDate(deal.fromDate)} ~ ${formatDealDate(deal.toDate)}`;
+  return deal.dateType === "departure-window" ? `출발 가능 ${range}` : range;
 }
 
 function renderWeekdayStrip(deal) {
+  if (deal.dateType === "departure-window") return "";
   const from = parseDealDate(deal.fromDate);
   const to = parseDealDate(deal.toDate);
   if (!from || !to) return "";
@@ -561,6 +563,8 @@ function getDealGroupKey(deal) {
   return [
     deal.departureCode || "ICN",
     deal.arrivalCode,
+    deal.collection || "regular",
+    deal.dateType || "itinerary",
     normalizeDealDate(deal.fromDate),
     normalizeDealDate(deal.toDate),
     deal.tripType || "왕복",
@@ -591,12 +595,14 @@ function getPriceOptions(deal) {
 
 function renderDealSourceMeta(deal) {
   const options = getPriceOptions(deal);
-  if (options.length === 1) return `<span class="deal-source-tag">${getDealSourceLabel(deal)}</span>`;
+  if (options.length === 1) return `<span class="deal-source-tag">${getDealSourceLabel(deal)}${deal.collection === "today-open" ? " · 오늘 오픈" : deal.collection === "promotion-calendar" ? " · 날짜별 특가" : ""}</span>`;
   const sources = [...new Set(options.map((option) => getDealSourceLabel(option)))];
   return `<span class="deal-source-tag grouped">${options.length}개 가격</span> ${sources.join(" · ")}`;
 }
 
 function getDealTripDays(deal) {
+  // Today-open fares specify a departure *window*, not the dates of a round trip.
+  if (deal.dateType === "departure-window") return null;
   if (/편도/.test(String(deal.tripType || ""))) return null;
   const from = parseDealDate(deal.fromDate);
   const to = parseDealDate(deal.toDate);
