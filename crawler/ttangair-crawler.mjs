@@ -1,136 +1,193 @@
 #!/usr/bin/env node
-
 import { pathToFileURL } from "node:url";
 
-const DEFAULT_LIST_URL = "https://www.ttang.com/ttangair/search/ttang/list.do?arr0=A7ALL";
-const DEFAULT_MAX_PRICE = 300000;
 export const SOURCE_ID = "ttang";
 export const SOURCE_NAME = "땡처리닷컴";
+export const TODAY_URL = "https://mm.ttang.com/ttangair/search/discount/today.do?trip=RT&gubun=T";
+export const PROMOTION_URL = "https://mm.ttang.com/ttangair/search/promotion/ttangIndex.do";
+const TODAY_ENDPOINT = "/ttangair/search/discount/listAct.do";
+const PROMOTION_ENDPOINT = "/ttangair/search/promotion/allTtangListAct.do";
+const USER_AGENT = "TtangDealRadar/0.1 (+https://github.com/minonminho/ttang-air-alert)";
+const DEFAULT_MAX_PRICE = 300000;
+const JAPAN_AIRPORTS = new Set([
+  "NRT","HND","KIX","NGO","FUK","CTS","HKD","OBO","AOJ","SDJ","KIJ","IBR",
+  "FSZ","KMQ","OKJ","YGJ","HIJ","TAK","MYJ","HSG","NGS","OIT","KMJ","KMI",
+  "KOJ","OKA","ISG","UKB","ITM","TOY","GAJ","TTJ","IWK","UBJ","SHM","TKS","AKJ","ASJ","KUH","MMB","MMY",
+]);
 
-function decodeHtml(value = "") {
-  return value
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
+function pad(number) { return String(number).padStart(2, "0"); }
+function dateKey(date) { return date.getUTCFullYear() + pad(date.getUTCMonth()+1) + pad(date.getUTCDate()); }
+function displayDate(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return /^\d{8}$/.test(digits) ? digits.slice(0,4) + "." + digits.slice(4,6) + "." + digits.slice(6,8) : "";
+}
+function parseDate(value) {
+  if (!/^\d{8}$/.test(String(value || ""))) return null;
+  const text = String(value);
+  const date = new Date(Date.UTC(Number(text.slice(0,4)), Number(text.slice(4,6))-1, Number(text.slice(6,8))));
+  return dateKey(date) === text ? date : null;
 }
 
-function textFromHtml(value = "") {
-  return decodeHtml(value.replace(/<script\b[\s\S]*?<\/script>/gi, "").replace(/<style\b[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " "))
-    .replace(/\s+/g, " ")
-    .trim();
+export function koreaToday(now = new Date()) {
+  const text = new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(now);
+  return new Date(text + "T00:00:00Z");
+}
+export function threeMonthEnd(date) {
+  // JavaScript's setMonth can overflow: Oct 31 + 3 months must be Jan 31.
+  const monthStart = new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+3,1));
+  const maxDay = new Date(Date.UTC(monthStart.getUTCFullYear(),monthStart.getUTCMonth()+1,0)).getUTCDate();
+  return new Date(Date.UTC(monthStart.getUTCFullYear(),monthStart.getUTCMonth(),Math.min(date.getUTCDate(),maxDay)));
+}
+export function datesInRange(start, end, maxDays = Infinity) {
+  const dates = [];
+  for (let cursor = new Date(start); cursor <= end && dates.length < maxDays; cursor.setUTCDate(cursor.getUTCDate()+1)) {
+    dates.push(dateKey(cursor));
+  }
+  return dates;
 }
 
-function attribute(fragment, name) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = fragment.match(new RegExp(`\\b${escaped}\\s*=\\s*["']([^"']*)["']`, "i"));
-  return match ? decodeHtml(match[1]) : "";
+function decodeHtml(value) {
+  return String(value || "").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'");
+}
+export function getSearchForm(html) {
+  const formTag = String(html).match(/<form\b[^>]*id=["']searchForm["'][\s\S]*?<\/form>/i)?.[0];
+  if (!formTag) throw new Error("땡처리 모바일 검색 폼을 찾지 못했습니다.");
+  const params = new URLSearchParams();
+  for (const input of formTag.match(/<input\b[^>]*>/gi) || []) {
+    const name = input.match(/\bname=["']([^"']+)["']/i)?.[1];
+    const value = input.match(/\bvalue=["']([^"']*)["']/i)?.[1] || "";
+    if (name) params.set(name,decodeHtml(value));
+  }
+  params.set("trip","RT");
+  params.set("page","1");
+  return params;
 }
 
-function listRows(html) {
-  return [...html.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi)]
-    .map((match) => match[0])
-    .filter((row) => /data-masterId\s*=/i.test(row));
+export function readXmlOffers(xml) {
+  const cdata = String(xml).match(/<CONTENS>\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*<\/CONTENS>/i)?.[1];
+  if (!cdata) throw new Error("땡처리 응답에 상품 목록 데이터가 없습니다.");
+  let payload;
+  try { payload = JSON.parse(cdata); }
+  catch { throw new Error("땡처리 응답의 상품 JSON을 해석하지 못했습니다."); }
+  if (payload.code !== "OK" || !Array.isArray(payload.response)) {
+    throw new Error("땡처리 상품 응답 오류: " + String(payload.desc || payload.code || "invalid payload"));
+  }
+  return payload.response;
 }
 
-function parseCheckInDate(html) {
-  const input = html.match(/<input\b[^>]*id=["']airAvailCheckIn["'][^>]*>/i);
-  return input ? attribute(input[0], "value") : "";
+function isJapaneseAirport(item) {
+  // Promotion API supplies 'A7', the today-open API leaves the region empty.
+  return item.natOpClass === "A7" || (!item.natOpClass && JAPAN_AIRPORTS.has(item.arrCityCode));
 }
-
-function reservationUrl(row, baseUrl, checkInDate) {
-  const anchor = row.match(/<a\b[^>]*data-masterId\s*=\s*["'][^"']+["'][^>]*>[\s\S]*?<\/a>/i)?.[0] ?? "";
-  const gubun = attribute(anchor, "data-gubun");
-  const depCity = attribute(anchor, "data-depCity");
-  const arrCity = attribute(anchor, "data-arrCity");
-  const airlineCode = attribute(anchor, "data-airlineCode");
-  const adtFare = attribute(anchor, "data-adtFare");
-  const adtQcharge = attribute(anchor, "data-adtQcharge");
-  const masterId = ["VV", "VH", "VM"].includes(gubun)
-    ? attribute(anchor, "data-masterId")
-    : `${depCity}-${arrCity}-${airlineCode}-${adtFare}-${adtQcharge}-${gubun}`;
-
-  const url = new URL("/ttangair/popup/ttang_inwon.do", baseUrl);
-  url.searchParams.set("masterId", masterId);
-  url.searchParams.set("gubun", gubun);
-  if (checkInDate) url.searchParams.set("exAirAvailStartDate", checkInDate);
-  if (["VV", "VH", "VM"].includes(gubun)) url.searchParams.set("minimumCnt", attribute(anchor, "data-minimumCnt") || "1");
+function parseDurationDays(value) {
+  const text = String(value || "").trim();
+  const nightDays = text.match(/\d+박\s*(\d+)일/);
+  const days = Number(nightDays?.[1] || (/^\d+$/.test(text) ? text : 0));
+  return Number.isInteger(days) && days > 0 && days <= 31 ? days : null;
+}
+function bookingUrl(kind, departureDate) {
+  if (kind === "today") return TODAY_URL;
+  const url = new URL(PROMOTION_URL);
+  if (departureDate) url.searchParams.set("depdate0",departureDate);
+  url.searchParams.set("trip","RT");
   return url.href;
 }
 
-function parseRow(row, baseUrl, checkInDate) {
-  const cells = [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map((match) => match[1]);
-  const anchor = row.match(/<a\b[^>]*data-masterId\s*=\s*["'][^"']+["'][^>]*>[\s\S]*?<\/a>/i)?.[0] ?? "";
-  const price = Number(attribute(anchor, "data-adtFare"));
-  const dates = textFromHtml(cells[4] ?? "").replace(/\s*\(.*?\)\s*/g, "").trim();
-  const [fromDate = "", toDate = ""] = dates.split("~").map((value) => value.trim());
-  const airlineCell = cells[2] ?? "";
-
-  return {
-    sourceId: SOURCE_ID,
-    sourceName: SOURCE_NAME,
-    departure: textFromHtml(cells[0] ?? ""),
-    departureCode: attribute(anchor, "data-depCity"),
-    arrival: textFromHtml(cells[1] ?? ""),
-    arrivalCode: attribute(anchor, "data-arrCity"),
-    airline: textFromHtml(airlineCell),
-    airlineCode: attribute(anchor, "data-airlineCode"),
-    nonstop: textFromHtml(cells[3] ?? "") === "직항",
-    fromDate,
-    toDate,
-    tripType: textFromHtml(cells[5] ?? ""),
-    price,
-    minimumPassengers: Number(attribute(anchor, "data-minimumCnt") || 1),
-    masterId: attribute(anchor, "data-masterId"),
-    gubun: attribute(anchor, "data-gubun"),
-    reservationUrl: reservationUrl(row, baseUrl, checkInDate),
-    sourceUrl: baseUrl,
-  };
+export function parseMobileOffers(items, {
+  kind, maxPrice = DEFAULT_MAX_PRICE, departureCodes = ["ICN","GMP"],
+  startDate = koreaToday(), endDate = threeMonthEnd(startDate),
+} = {}) {
+  const accepted = new Set(departureCodes);
+  const lowest = new Map();
+  const minDate = dateKey(startDate), maxDate = dateKey(endDate);
+  for (const item of items) {
+    const price = Number(item.totalPrice);
+    if (item.tripType !== "RT" || Number(item.viaCnt) !== 0
+      || !accepted.has(item.depCityCode) || !isJapaneseAirport(item)
+      || !Number.isFinite(price) || price <= 0 || price >= maxPrice) continue;
+    const isWindow = kind === "today";
+    const first = isWindow ? item.fromSupplyDate : item.departureDate;
+    const last = isWindow ? item.toSupplyDate : item.arrivalDate;
+    const departureDate = parseDate(first);
+    const finalDate = parseDate(last);
+    if (!departureDate || !finalDate || finalDate < departureDate) continue;
+    if (isWindow ? (dateKey(finalDate) < minDate || dateKey(departureDate) > maxDate)
+      : (dateKey(departureDate) < minDate || dateKey(departureDate) > maxDate)) continue;
+    const fromDate = isWindow && dateKey(departureDate) < minDate ? displayDate(minDate) : displayDate(first);
+    const toDate = isWindow && dateKey(finalDate) > maxDate ? displayDate(maxDate) : displayDate(last);
+    const deal = {
+      sourceId: SOURCE_ID, sourceName: SOURCE_NAME,
+      collection: isWindow ? "today-open" : "promotion-calendar",
+      dateType: isWindow ? "departure-window" : "itinerary",
+      departure: item.depCityDesc || (item.depCityCode === "GMP" ? "김포" : "인천"),
+      departureCode: item.depCityCode,
+      arrival: item.arrCityDesc || item.arrCityCode, arrivalCode: item.arrCityCode,
+      airline: item.tktCarDesc || item.tktCar || "", airlineCode: item.tktCar || "",
+      nonstop: true, fromDate, toDate,
+      durationDays: parseDurationDays(item.tripDay),
+      tripType: isWindow ? "왕복 · 출발 가능 기간" : "왕복",
+      price, minimumPassengers: Math.max(1,Number(item.minimumCnt) || 1),
+      masterId: String(item.masterId || item.hanaFareId || ""),
+      gubun: item.gubun || "", reservationUrl: bookingUrl(kind,item.departureDate),
+      sourceUrl: isWindow ? TODAY_URL : PROMOTION_URL,
+    };
+    const key = [deal.collection,deal.departureCode,deal.arrivalCode,deal.masterId,fromDate,toDate,deal.durationDays].join("|");
+    if (!lowest.has(key) || price < lowest.get(key).price) lowest.set(key,deal);
+  }
+  return [...lowest.values()].sort((a,b) => a.price-b.price);
 }
 
-async function fetchPage(url) {
-  const response = await fetch(url, {
-    headers: {
-      accept: "text/html,application/xhtml+xml",
-      "accept-language": "ko-KR,ko;q=0.9,en;q=0.8",
-      "user-agent": "Mozilla/5.0 (compatible; TtangDealRadar/0.1; +https://ttang-air-alert.vividfox6.chatgpt.site)",
-    },
+async function fetchHtml(url) {
+  const response = await fetch(url,{
+    signal:AbortSignal.timeout(15000),
+    headers:{accept:"text/html,application/xhtml+xml","accept-language":"ko-KR,ko;q=0.9","user-agent":USER_AGENT},
   });
-  if (!response.ok) throw new Error(`땡닷컴 응답 오류: HTTP ${response.status}`);
+  if (!response.ok) throw new Error("땡처리 모바일 페이지 HTTP " + response.status);
   return response.text();
 }
+async function fetchOffers(endpoint, referer, params) {
+  const response = await fetch(new URL(endpoint,referer),{
+    method:"POST",signal:AbortSignal.timeout(15000),body:params,
+    headers:{
+      "content-type":"application/x-www-form-urlencoded; charset=UTF-8",
+      accept:"application/xml,text/xml,*/*",
+      "x-requested-with":"XMLHttpRequest",referer,"user-agent":USER_AGENT,
+    },
+  });
+  if (!response.ok) throw new Error("땡처리 모바일 목록 HTTP " + response.status);
+  return readXmlOffers(await response.text());
+}
+function delay(ms) { return new Promise((resolve)=>setTimeout(resolve,ms)); }
 
-export async function crawlTtangAir({ listUrl = DEFAULT_LIST_URL, departureCode = "ICN", maxPrice = DEFAULT_MAX_PRICE, maxPages = 20 } = {}) {
-  const deals = new Map();
-
-  for (let page = 1; page <= maxPages; page += 1) {
-    const pageUrl = new URL(listUrl);
-    pageUrl.searchParams.set("page", String(page));
-    pageUrl.searchParams.set("scale", "20");
-    const html = await fetchPage(pageUrl.href);
-    const rows = listRows(html);
-    if (!rows.length) break;
-    const checkInDate = parseCheckInDate(html);
-
-    for (const row of rows) {
-      const deal = parseRow(row, pageUrl.href, checkInDate);
-      if (deal.departureCode === departureCode && deal.price > 0 && deal.price < maxPrice) {
-        const key = `${deal.masterId}|${deal.fromDate}|${deal.toDate}`;
-        deals.set(key, deal);
-      }
-    }
-
-    if (rows.length < 20) break;
+// The site returns every matching fare inside XML/JSON, irrespective of its visible page-size=20.
+export async function crawlTtangAir({
+  departureCodes = ["ICN","GMP"], departureCode, maxPrice = DEFAULT_MAX_PRICE,
+  startDate = koreaToday(), maxDays = Infinity, delayMs = 1000,
+} = {}) {
+  if (departureCode) departureCodes = [departureCode];
+  const endDate = threeMonthEnd(startDate);
+  const options = {startDate,endDate,departureCodes,maxPrice};
+  const [todayHtml, calendarHtml] = await Promise.all([fetchHtml(TODAY_URL),fetchHtml(PROMOTION_URL)]);
+  const todayForm = getSearchForm(todayHtml);
+  todayForm.set("gubun","T");
+  const calendarForm = getSearchForm(calendarHtml);
+  const today = parseMobileOffers(await fetchOffers(TODAY_ENDPOINT,TODAY_URL,todayForm),{...options,kind:"today"});
+  const results = new Map();
+  for (const item of today) results.set([item.collection,item.departureCode,item.arrivalCode,item.masterId,item.fromDate,item.toDate,item.durationDays].join("|"),item);
+  const days = datesInRange(startDate,endDate,maxDays);
+  console.log("[ttang] today-open: " + today.length + " Japan direct fares; calendar: " + days.length + " departure days");
+  for (const [index, date] of days.entries()) {
+    if (index && delayMs > 0) await delay(delayMs);
+    const form = new URLSearchParams(calendarForm);
+    form.set("depdate0",date);
+    const items = parseMobileOffers(await fetchOffers(PROMOTION_ENDPOINT,PROMOTION_URL,form),{...options,kind:"calendar"});
+    for (const item of items) results.set([item.collection,item.departureCode,item.arrivalCode,item.masterId,item.fromDate,item.toDate,item.price].join("|"),item);
+    if ((index+1)%10===0 || index===days.length-1) console.log("[ttang] calendar " + (index+1) + "/" + days.length + ", offers=" + results.size);
   }
-
-  return [...deals.values()].sort((left, right) => left.price - right.price);
+  return [...results.values()].sort((a,b)=>a.price-b.price);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const deals = await crawlTtangAir();
-  console.log(JSON.stringify({ fetchedAt: new Date().toISOString(), count: deals.length, deals }, null, 2));
+  const offers = await crawlTtangAir({maxDays:Number(process.env.TTANG_MAX_DAYS || Infinity)});
+  console.log(JSON.stringify({fetchedAt:new Date().toISOString(),count:offers.length,deals:offers},null,2));
 }
