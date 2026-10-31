@@ -22,6 +22,24 @@ const crawls = await Promise.allSettled([
   crawlHanatour({ departureCode: "ICN", maxPrice: 300000 }),
   crawlYbtour({ departureCode: "ICN", maxPrice: 300000 }),
 ]);
+// A fulfilled HTTP request is not proof that usable, verified nonstop fares were found.
+const sourceStatuses = crawls.map((result, index) => {
+  const id = sources[index].id;
+  if (result.status === "rejected") {
+    const detail = String(result.reason?.message || result.reason || "요청 실패");
+    const blocked = /HTTP 403|HTTP 429|차단|거부/.test(detail);
+    return { id, status: blocked ? "blocked" : "error", fetchedCount: 0, publishedCount: 0,
+      reason: blocked ? "판매처에서 자동 요청을 제한합니다." : detail };
+  }
+  const fetchedCount = result.value.length;
+  const publishedCount = result.value.filter((deal) => deal.nonstop === true).length;
+  return { id, status: publishedCount ? "ok" : fetchedCount ? "unverified" : "empty",
+    fetchedCount, publishedCount,
+    reason: fetchedCount && !publishedCount ? "판매처 목록에서 왕복 직항 여부를 확인할 수 없어 제외했습니다." : "" };
+});
+for (const state of sourceStatuses) {
+  console.log(`[source-status] ${state.id}: ${state.status} (fetched=${state.fetchedCount}, nonstop=${state.publishedCount}) ${state.reason}`);
+}
 const deals = crawls.flatMap((result, index) => {
   if (result.status === "fulfilled") return result.value.filter((deal) => deal.nonstop === true);
   console.warn(`Skipped ${sources[index].label}: ${result.reason?.message || result.reason}`);
@@ -35,6 +53,7 @@ await mkdir(dirname(outputPath), { recursive: true });
 const snapshot = {
   fetchedAt: new Date().toISOString(),
   sources,
+  sourceStatuses,
   criteria: { departureCode: "ICN", maxPriceExclusive: 300000, nonstopOnly: true },
   deals,
 };
