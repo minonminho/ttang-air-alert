@@ -595,14 +595,14 @@ function getPriceOptions(deal) {
 
 function renderDealSourceMeta(deal) {
   const options = getPriceOptions(deal);
-  if (options.length === 1) return `<span class="deal-source-tag">${getDealSourceLabel(deal)}${deal.collection === "today-open" ? " · 오늘 오픈" : deal.collection === "promotion-calendar" ? " · 날짜별 특가" : ""}</span>`;
+  if (options.length === 1) return `<span class="deal-source-tag">${getDealSourceLabel(deal)}${deal.collection === "today-open" ? " · 오늘 오픈" : deal.collection === "promotion-calendar" ? " · 날짜별 특가" : ""}${deal.stale ? " · 이전 수집 가격" : ""}</span>`;
   const sources = [...new Set(options.map((option) => getDealSourceLabel(option)))];
   return `<span class="deal-source-tag grouped">${options.length}개 가격</span> ${sources.join(" · ")}`;
 }
 
 function getDealTripDays(deal) {
   // Today-open fares specify a departure *window*, not the dates of a round trip.
-  if (deal.dateType === "departure-window") return null;
+  if (deal.dateType === "departure-window") return Number.isInteger(deal.durationDays) ? deal.durationDays : null;
   if (/편도/.test(String(deal.tripType || ""))) return null;
   const from = parseDealDate(deal.fromDate);
   const to = parseDealDate(deal.toDate);
