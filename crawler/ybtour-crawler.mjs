@@ -10,7 +10,7 @@ const DEFAULT_DEPARTURE_CODE = "ICN";
 const DEFAULT_MAX_PRICE = 300000;
 const JAPAN_BANNER_CODE = "J1";
 const USER_AGENT = "Mozilla/5.0 (compatible; TtangDealRadar/0.1; +https://ttang-air-alert.vividfox6.chatgpt.site)";
-const FALLBACK_CITY_CODES = ["CTS", "SHI", "FUK", "KMJ", "TAK", "KIX", "OKA", "NRT", "FSZ", "NGO", "HKD", "UKB", "OIT"];
+const FALLBACK_CITY_CODES = ["FUK", "SHI", "KIX", "CTS", "OKA", "KMJ", "FSZ", "MYJ", "NGO", "NRT", "TAK", "HKD", "UKB", "OIT"];
 
 function decodeHtml(value = "") {
   return value
@@ -136,7 +136,8 @@ export async function crawlYbtour({ departureCode = DEFAULT_DEPARTURE_CODE, maxP
   const deals = new Map();
 
   for (const cityCode of cityCodes) {
-    const html = cityCode === "CTS" ? initialHtml : await fetchPage(cityUrl(cityCode));
+    // The initial page defaults to one city (often FUK); never reuse it as the CTS listing.
+    const html = await fetchPage(cityUrl(cityCode));
     for (const deal of parseRows(html, cityCode, maxPrice, departureCode)) {
       const key = `${deal.masterId}|${deal.fromDate}|${deal.toDate}`;
       deals.set(key, deal);
