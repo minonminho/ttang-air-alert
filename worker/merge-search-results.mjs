@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { DESTINATIONS } from './google-playwright.mjs';
+import { SEARCH_ROUTES } from './routes.mjs';
 import { isNonstopRoundTrip } from './nonstop.mjs';
 
 export function mergeSearchResults(snapshots, expectedCodes, runId) {
@@ -11,14 +11,14 @@ export function mergeSearchResults(snapshots, expectedCodes, runId) {
   for (const snapshot of snapshots) {
     if (runId && snapshot.runId !== runId) throw new Error('검색 결과의 실행 ID가 일치하지 않습니다.');
     for (const result of snapshot.results || []) {
-      if (!expectedCodes.includes(result.destinationCode)) throw new Error('예상하지 않은 도시 결과입니다.');
+      if (!expectedCodes.includes(result.routeId || result.destinationCode)) throw new Error('예상하지 않은 노선 결과입니다.');
       if (!isNonstopRoundTrip(result)) continue;
-      records.set([result.destinationCode, result.departureDate, result.returnDate, result.operationKey, result.price].join('|'), result);
+      records.set([result.routeId || result.destinationCode, result.departureCode || 'ICN', result.departureDate, result.returnDate, result.operationKey, result.price].join('|'), result);
     }
   }
   for (const code of expectedCodes) {
-    if (!summaries.some((summary) => summary.destinationCode === code)) {
-      errors.push({ destinationCode:code, error:'작업이 완료되지 않았거나 결과 파일이 누락됐습니다.' });
+    if (!summaries.some((summary) => (summary.routeId || summary.destinationCode) === code)) {
+      errors.push({ routeId:code, error:'작업이 완료되지 않았거나 결과 파일이 누락됐습니다.' });
     }
   }
   const results = [...records.values()].sort((a,b) => a.price - b.price);
@@ -44,7 +44,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (error.code === 'ENOENT') return [];
     throw error;
   });
-  const snapshot = mergeSearchResults(snapshots, isTest ? ['NRT','HKD'] : [...DESTINATIONS.keys()], process.env.GITHUB_RUN_ID);
+  const snapshot = mergeSearchResults(snapshots, isTest ? ['NRT','HKD','GMP-HND','GMP-KIX'] : [...SEARCH_ROUTES.keys()], process.env.GITHUB_RUN_ID);
   const output = isTest ? 'worker/data/test-flight-results.json' : 'dist/flight-results.json';
   if (snapshot.status === 'failed') throw new Error('사용 가능한 결과가 없습니다. 기존 공개 결과를 보존합니다.');
   const serialized = JSON.stringify(snapshot);
