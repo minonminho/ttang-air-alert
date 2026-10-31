@@ -6,7 +6,7 @@ import { isTransientSearchError, retrySearchOnce, withSearchDeadline } from "./s
 import { isNonstopFlightDescription, isNonstopRoundTrip } from "./nonstop.mjs";
 
 const GOOGLE_BASE_URL = "https://www.google.com/travel/flights";
-const DEPARTURE_CODE = "ICN";
+const DEFAULT_DEPARTURE_CODE = "ICN";
 const TRIP_DAYS = [3, 4, 5, 6];
 const TOP_RESULTS = 5;
 const MIN_PRICE = 100000;
@@ -55,10 +55,10 @@ function includesWeekend(start, end) {
   return hasSaturday && hasSunday;
 }
 
-export function makeSearchUrl(destinationCode, departureDate, returnDate) {
+export function makeSearchUrl(destinationCode, departureDate, returnDate, departureCode = DEFAULT_DEPARTURE_CODE) {
   const url = new URL(GOOGLE_BASE_URL);
   // Use the public search page; no private API or encoded internal request.
-  url.searchParams.set("q", `Nonstop round trip flights from ${DEPARTURE_CODE} to ${destinationCode} departing ${dateKey(departureDate)} returning ${dateKey(returnDate)} for 1 adult economy`);
+  url.searchParams.set("q", `Nonstop round trip flights from ${departureCode} to ${destinationCode} departing ${dateKey(departureDate)} returning ${dateKey(returnDate)} for 1 adult economy`);
   url.searchParams.set("hl", "en");
   url.searchParams.set("curr", "KRW");
   return url.href;
@@ -265,6 +265,8 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
 
 export async function searchGoogle({
   destinationCode,
+  cityCode = destinationCode,
+  departureCode = DEFAULT_DEPARTURE_CODE,
   startDate = new Date(),
   months = 3,
   onProgress = () => {},
@@ -281,7 +283,8 @@ export async function searchGoogle({
   departureNavigation = 'history',
   tripTimeoutMs = 60000,
 } = {}) {
-  if (!DESTINATIONS.has(destinationCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${destinationCode}`);
+  if (!DESTINATIONS.has(cityCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${cityCode}`);
+  if (departureCode !== "ICN" && !(departureCode === "GMP" && ((cityCode === "NRT" && destinationCode === "HND") || (cityCode === "KIX" && destinationCode === "KIX")))) throw new Error(`지원하지 않는 출발 노선입니다: ${departureCode} → ${destinationCode}`);
 
   const allTrips = makeCandidateTrips({ startDate, months });
   const initialTrips = (mode === "quick" ? makeQuickCandidateTrips({ startDate, months }) : allTrips).slice(0, maxTrips);
@@ -324,8 +327,8 @@ export async function searchGoogle({
       const trip = trips[index];
       const departure = parseDate(trip.departureDate);
       const returnDate = parseDate(trip.returnDate);
-      const searchUrl = makeSearchUrl(destinationCode, departure, returnDate);
-      const cacheKey = `google-v3-nonstop|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
+      const searchUrl = makeSearchUrl(destinationCode, departure, returnDate, departureCode);
+      const cacheKey = `google-v4-nonstop|${departureCode}|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
       const cached = useCache ? getFreshFlightCacheEntry(cache, cacheKey) : null;
       let options = cached?.options ? cached.options.filter(isNonstopRoundTrip) : null;
       const cacheHit = Boolean(options);
@@ -364,8 +367,11 @@ export async function searchGoogle({
 
       const tripResults = options.map((option) => ({
         ...option,
-        destinationCode,
-        destination: DESTINATIONS.get(destinationCode),
+        destinationCode: cityCode,
+        arrivalAirportCode: destinationCode,
+        departureCode,
+        routeId: departureCode === "ICN" ? cityCode : `${departureCode}-${destinationCode}`,
+        destination: DESTINATIONS.get(cityCode),
         departureDate: trip.departureDate,
         returnDate: trip.returnDate,
         tripDays: trip.tripDays,
@@ -398,8 +404,10 @@ export async function searchGoogle({
     }
 
     return {
-      destinationCode,
-      destination: DESTINATIONS.get(destinationCode),
+      destinationCode: cityCode,
+      departureCode,
+      arrivalAirportCode: destinationCode,
+      destination: DESTINATIONS.get(cityCode),
       criteria: { tripDays: TRIP_DAYS, nonstopOnly: true, weekendRequired: true, months, minPrice: MIN_PRICE, topResults: TOP_RESULTS, allTrips: includeAllResults, mode, candidateTrips: searched.length, fullCandidateTrips: allTrips.length, refinementWeeks: mode === "quick" ? QUICK_REFINE_WEEKS : 0 },
       searchedTrips,
       tripErrors,
