@@ -51,6 +51,13 @@ test('public URL keeps exact airports, round-trip dates and KRW', () => {
   assert.match(url.searchParams.get('q'), /Nonstop/);
 });
 
+test('Gimpo airport codes are preserved in the Google Flights URL', () => {
+  const date = new Date(2026, 10, 7);
+  const out = new Date(2026, 10, 9);
+  assert.match(new URL(makeSearchUrl('HND', date, out, 'GMP')).searchParams.get('q'), /from GMP to HND/);
+  assert.match(new URL(makeSearchUrl('KIX', date, out, 'GMP')).searchParams.get('q'), /from GMP to KIX/);
+});
+
 test('quick mode inspects fewer outgoing flights while full mode keeps five', () => {
   assert.equal(getDepartureSampleSize('quick'), 2);
   assert.equal(getDepartureSampleSize('full'), 5);
