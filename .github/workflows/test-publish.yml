@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "worker/**"
+      - "crawler/**"
+      - "dist/app.js"
+      - "dist/index.html"
+      - "dist/styles.css"
       - "package.json"
       - ".github/workflows/update-deals.yml"
       - ".github/workflows/test-publish.yml"
@@ -23,3 +27,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:unit
+      - run: node --check dist/app.js
+      - run: node --check crawler/update-snapshot.mjs

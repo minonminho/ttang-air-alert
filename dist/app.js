@@ -66,8 +66,10 @@ const dealSources = [
 
 let toastTimer;
 let todayDeals = [];
+let dealSourceStatuses = [];
 let activeSource = "all";
 let activeDealDuration = "all";
+let activeDealDeparture = "all";
 let japanMap = null;
 let japanBounds = [];
 let selectedCity = null;
@@ -83,6 +85,7 @@ let liveFlightPage = 1;
 let liveFlightCity = "all";
 let liveFlightAirline = "all";
 let liveFlightDuration = "all";
+let liveFlightDeparture = "all";
 let renderedLiveFlightResultCount = -1;
 let liveFlightUpdatedAt = null;
 
@@ -205,10 +208,13 @@ function groupFlightResults(results = []) {
   for (const result of results) {
     if (Number(result.price) < 100000 || !isNonstopLiveFlight(result)) continue;
     const operationKey = result.operationKey || normalizeFlightOperation(result.label);
-    const key = `${result.destinationCode}|${result.price}|${operationKey}`;
+    const departureCode = result.departureCode || "ICN";
+    const key = `${departureCode}|${result.arrivalAirportCode || result.destinationCode}|${result.price}|${operationKey}`;
     const group = groups.get(key) || {
       destination: result.destination,
       destinationCode: result.destinationCode,
+      arrivalAirportCode: result.arrivalAirportCode || result.destinationCode,
+      departureCode,
       price: result.price,
       label: result.label || "항공권 운항 정보",
       airline: result.airline || inferAirline(result.label),
@@ -239,7 +245,7 @@ function parseFlightLeg(leg) {
   if (!match) return null;
   const airportLabel = (value) => {
     const name = value.replace(/\s+Airport$/i, "").replace(/\s+International$/i, "");
-    const known = { "Incheon": "인천", "Narita": "도쿄 나리타", "Haneda": "도쿄 하네다", "New Chitose": "삿포로 신치토세", "Hakodate": "하코다테" };
+    const known = { "Gimpo": "김포", "Seoul Gimpo": "김포", "Incheon": "인천", "Narita": "도쿄 나리타", "Haneda": "도쿄 하네다", "Kansai": "오사카 간사이", "New Chitose": "삿포로 신치토세", "Hakodate": "하코다테" };
     return known[name] || name;
   };
   const departureDate = new Date(`${match[3]} 2020`);
@@ -281,7 +287,7 @@ function formatLiveRefreshTime(value) {
 function renderLiveFlightCard(group) {
   const schedules = group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener"><strong>${schedule.tripDays}일 일정</strong><span>${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}</span><span class="live-flight-schedule-arrow" aria-hidden="true">↗</span></a>`).join("");
   return `<article class="live-flight-card">
-    <header class="live-flight-card-header"><div class="live-flight-city-block"><strong>${escapeHtml(group.destination)}</strong><span>${escapeHtml(group.destinationCode)}</span></div><div class="live-flight-price"><small>왕복 최저가</small><strong>${formatPrice(group.price)}</strong></div></header>
+    <header class="live-flight-card-header"><div class="live-flight-city-block"><strong>${escapeHtml(group.destination)}</strong><span>${escapeHtml(group.departureCode === "GMP" ? "김포 (GMP)" : "인천 (ICN)")} → ${escapeHtml(group.arrivalAirportCode || group.destinationCode)}</span></div><div class="live-flight-price"><small>왕복 최저가</small><strong>${formatPrice(group.price)}</strong></div></header>
     <div class="live-flight-legs">${renderFlightLeg(group.outbound, "가는 편")}<span class="live-flight-leg-divider" aria-hidden="true"></span>${renderFlightLeg(group.inbound, "오는 편")}</div>
     <footer class="live-flight-card-footer"><div class="live-flight-schedules-heading"><strong>가능한 일정</strong><span>${group.schedules.length}개</span></div><div class="live-flight-schedules">${schedules}</div></footer>
   </article>`;
@@ -308,8 +314,9 @@ function filterFlightSchedulesByDuration(groups, duration = liveFlightDuration) 
 function getFilteredLiveFlightGroups(groups = groupFlightResults(liveFlightResults)) {
   return filterFlightSchedulesByDuration(groups).filter((group) => {
     const cityMatch = liveFlightCity === "all" || group.destinationCode === liveFlightCity;
+    const departureMatch = liveFlightDeparture === "all" || group.departureCode === liveFlightDeparture;
     const airlineMatch = liveFlightAirline === "all" || getGroupAirlines(group).includes(liveFlightAirline);
-    return cityMatch && airlineMatch;
+    return cityMatch && departureMatch && airlineMatch;
   });
 }
 
@@ -348,7 +355,7 @@ function renderLiveFlightList() {
 }
 
 function renderAllAutomationResults(job, container) {
-  const groups = filterFlightSchedulesByDuration(groupFlightResults(job.results || []));
+  const groups = getFilteredLiveFlightGroups(groupFlightResults(job.results || []));
   const visibleGroups = groups.slice(0, LIVE_FLIGHTS_PER_PAGE);
   container.innerHTML = visibleGroups.length ? visibleGroups.map(renderLiveFlightCard).join("") : '<div class="automation-empty">아직 검색 결과가 없습니다.</div>';
 }
@@ -552,6 +559,7 @@ function normalizeDealDate(value) {
 
 function getDealGroupKey(deal) {
   return [
+    deal.departureCode || "ICN",
     deal.arrivalCode,
     normalizeDealDate(deal.fromDate),
     normalizeDealDate(deal.toDate),
@@ -599,7 +607,7 @@ function getDealTripDays(deal) {
 
 function getDurationFilteredDeals(deals) {
   // Only display deals whose provider explicitly identifies them as nonstop.
-  const nonstopDeals = deals.filter((deal) => deal.nonstop === true);
+  const nonstopDeals = deals.filter((deal) => deal.nonstop === true && (activeDealDeparture === "all" || (deal.departureCode || "ICN") === activeDealDeparture));
   return activeDealDuration === "all" ? nonstopDeals : nonstopDeals.filter((deal) => getDealTripDays(deal) === Number(activeDealDuration));
 }
 
@@ -622,7 +630,7 @@ function renderSourceFilters() {
   ];
   container.innerHTML = buttons.map((source) => `
     <button class="source-filter${activeSource === source.id ? " active" : ""}" type="button" data-source="${source.id}">
-      <span>${source.label}</span><small>${source.count}개</small>
+      <span>${source.label}</span><small>${source.count}개${dealSourceStatuses.some((item) => item.id === source.id && item.status === "blocked") ? " · 접근 제한" : dealSourceStatuses.some((item) => item.id === source.id && item.status === "unverified") ? " · 직항 미확인" : ""}</small>
     </button>`).join("");
   container.querySelectorAll(".source-filter").forEach((button) => {
     button.addEventListener("click", () => {
@@ -638,12 +646,14 @@ function renderDeals(deals) {
   const list = document.querySelector("#dealList");
   document.querySelector("#mapDealCount").textContent = `오늘의 특가 ${deals.length}개`;
   if (!deals.length) {
-    list.innerHTML = '<div class="empty-state">오늘은 조건에 맞는 특가가 아직 없어요.</div>';
+    const sourceState = dealSourceStatuses.find((item) => item.id === activeSource);
+    const reason = sourceState?.status === "blocked" ? "판매처에서 자동 수집 접근을 제한하고 있습니다." : sourceState?.status === "unverified" ? "판매처의 항공권은 직항 여부가 확인되지 않아 제외했습니다." : "오늘은 조건에 맞는 특가가 아직 없어요.";
+    list.innerHTML = `<div class="empty-state">${escapeHtml(reason)}</div>`;
     return;
   }
   list.innerHTML = deals.map((deal) => `
     <article class="deal-card" data-arrival="${deal.arrivalCode}">
-      <div class="deal-main"><div class="deal-route"><strong>인천 → ${deal.arrival}</strong><span class="deal-code">ICN · ${deal.arrivalCode}</span></div><p class="deal-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p>${renderWeekdayStrip(deal)}</div>
+      <div class="deal-main"><div class="deal-route"><strong>${deal.departureCode === "GMP" ? "김포" : "인천"} → ${deal.arrival}</strong><span class="deal-code">${deal.departureCode || "ICN"} · ${deal.arrivalCode}</span></div><p class="deal-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p>${renderWeekdayStrip(deal)}</div>
       <strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong>
       <a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a>
     </article>`).join("");
@@ -651,7 +661,7 @@ function renderDeals(deals) {
 
 function renderCityLiveFare(city) {
   const lowest = filterFlightSchedulesByDuration(groupFlightResults(liveFlightResults))
-    .filter((group) => group.destinationCode === city.code)
+    .filter((group) => group.destinationCode === city.code && (liveFlightDeparture === "all" || group.departureCode === liveFlightDeparture))
     .sort((left, right) => left.price - right.price)[0];
   if (!lowest) return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><p class="city-panel-live-empty">선택한 기간에 맞는 이 도시의 항공권 결과가 없습니다.</p></section>`;
   const schedule = lowest.schedules[0];
@@ -659,7 +669,7 @@ function renderCityLiveFare(city) {
     ? `${schedule.tripDays}일 일정 · ${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}`
     : "검색 결과 보기";
   const href = schedule?.url || "#liveFlights";
-  return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><div class="city-panel-live-main"><strong>${formatPrice(lowest.price)}</strong><span>왕복 · ${escapeHtml(lowest.airline)}</span></div><a class="city-panel-live-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(scheduleText)}</span><strong>항공권 보기 ↗</strong></a><small class="city-panel-live-updated">${escapeHtml(formatLiveRefreshTime(liveFlightUpdatedAt))}</small></section>`;
+  return `<section class="city-panel-live-fare" aria-label="실시간 항공권 최저가"><div class="city-panel-live-heading"><span>LIVE FLIGHTS</span><strong>실시간 검색 최저가</strong></div><div class="city-panel-live-main"><strong>${formatPrice(lowest.price)}</strong><span>왕복 · ${lowest.departureCode === "GMP" ? "김포" : "인천"} 출발 · ${escapeHtml(lowest.airline)}</span></div><a class="city-panel-live-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(scheduleText)}</span><strong>항공권 보기 ↗</strong></a><small class="city-panel-live-updated">${escapeHtml(formatLiveRefreshTime(liveFlightUpdatedAt))}</small></section>`;
 }
 
 function renderCityAttractions(city) {
@@ -999,8 +1009,8 @@ function showCityDeals(city, { focusMap = true } = {}) {
   document.querySelectorAll(".city-choice").forEach((button) => button.classList.toggle("active", button.dataset.code === city.code));
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
   panel.innerHTML = `
-    <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · 인천 출발</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
-    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">인천 → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
+    <div class="city-panel-header"><div><p class="city-panel-kicker">SELECTED CITY</p><h3 class="city-panel-title">${city.name}</h3><p class="city-panel-code">${city.code} · ${activeDealDeparture === "GMP" ? "김포 출발" : activeDealDeparture === "ICN" ? "인천 출발" : "인천·김포 출발"}</p></div><button id="cityPanelClose" class="city-panel-close" type="button" aria-label="일본 전체 지도 보기">×</button></div>
+    <div class="city-panel-list">${matches.length ? matches.map((deal) => `<div class="city-panel-deal"><div><div class="city-panel-route">${deal.departureCode === "GMP" ? "김포" : "인천"} → ${deal.arrival}</div><p class="city-panel-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${formatPeriod(deal)}</p>${renderWeekdayStrip(deal)}</div><strong class="city-panel-price">${formatPrice(deal.price)}</strong><a class="city-panel-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a></div>`).join("") : '<div class="city-panel-empty">오늘은 이 도시의 30만원 미만 특가가 아직 없어요.<br />다음 수집 때 다시 확인할게요.</div>'}</div>
     <div class="city-panel-footer"><span>특가 ${matches.length}개</span><a href="${city.osm}" target="_blank" rel="noopener">OSM에서 보기 ↗</a></div>`;
   panel.querySelector(".city-panel-list")?.insertAdjacentHTML("beforebegin", renderCityLiveFare(city));
   attractionsPanel.innerHTML = renderCityAttractions(city);
@@ -1089,12 +1099,14 @@ async function loadDeals() {
     if (!response.ok) throw new Error(`deals.json HTTP ${response.status}`);
     const payload = await response.json();
     todayDeals = Array.isArray(payload.deals) ? payload.deals : [];
+    dealSourceStatuses = Array.isArray(payload.sourceStatuses) ? payload.sourceStatuses : [];
     renderSourceFilters();
     renderDeals(getVisibleDeals());
     if (selectedCity) showCityDeals(selectedCity);
   } catch (error) {
     console.warn("오늘의 특가를 불러오지 못했습니다.", error);
     todayDeals = [];
+    dealSourceStatuses = [];
     renderDeals(todayDeals);
   }
 }
@@ -1128,6 +1140,8 @@ async function refreshTodayDeals() {
 }
 
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
+document.querySelector("#liveDepartureFilter").addEventListener("change", (event) => { liveFlightDeparture = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); refreshSelectedCityLiveFare(); });
+document.querySelector("#dealDepartureFilter").addEventListener("change", (event) => { activeDealDeparture = event.target.value; renderSourceFilters(); renderDeals(getVisibleDeals()); if (selectedCity) showCityDeals(selectedCity); });
 document.querySelector("#liveCityFilter").addEventListener("change", (event) => { liveFlightCity = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveAirlineFilter").addEventListener("change", (event) => { liveFlightAirline = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveDurationFilter").addEventListener("change", (event) => { liveFlightDuration = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); refreshSelectedCityLiveFare(); });

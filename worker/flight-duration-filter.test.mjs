@@ -17,11 +17,16 @@ function extract(startName, nextName) {
 function loadBrowserFunctions() {
   const script = [
     'let liveFlightDuration = "all";',
+    'let liveFlightDeparture = "all";',
+    'let liveFlightCity = "all";',
+    'let liveFlightAirline = "all";',
+    'let activeDealDeparture = "all";',
     'let activeDealDuration = "all";',
     'let liveFlightResults = [];',
     'let liveFlightUpdatedAt = null;',
     'function normalizeFlightOperation(value) { return String(value || ""); }',
     'function inferAirline() { return "기타"; }',
+    'function getGroupAirlines(group) { return [group.airline]; }',
     'function formatDealDate(value) { return String(value); }',
     'function formatPrice(value) { return "KRW " + value; }',
     'function escapeHtml(value) { return String(value); }',
@@ -29,10 +34,11 @@ function loadBrowserFunctions() {
     extract("isNonstopLiveFlight", "groupFlightResults"),
     extract("groupFlightResults", "parseFlightLeg"),
     extract("filterFlightSchedulesByDuration", "getFilteredLiveFlightGroups"),
+    extract("getFilteredLiveFlightGroups", "updateLiveFlightFilters"),
     extract("parseDealDate", "formatDealDate"),
     extract("getDealTripDays", "getVisibleDeals"),
     extract("renderCityLiveFare", "renderCityAttractions"),
-    '({ groupFlightResults, filterFlightSchedulesByDuration, getDealTripDays, getDurationFilteredDeals, renderCityLiveFare, setFlightDuration(value) { liveFlightDuration = value; }, setDealDuration(value) { activeDealDuration = value; }, setFlightResults(value) { liveFlightResults = value; } })',
+    '({ groupFlightResults, filterFlightSchedulesByDuration, getFilteredLiveFlightGroups, getDealTripDays, getDurationFilteredDeals, renderCityLiveFare, setFlightDuration(value) { liveFlightDuration = value; }, setLiveDeparture(value) { liveFlightDeparture = value; }, setDealDeparture(value) { activeDealDeparture = value; }, setDealDuration(value) { activeDealDuration = value; }, setFlightResults(value) { liveFlightResults = value; } })',
   ].join("\n");
   return vm.runInNewContext(script);
 }
@@ -41,6 +47,8 @@ const makeFlight = (tripDays, overrides = {}) => ({
   destination: "도쿄",
   destinationCode: "NRT",
   price: 220000,
+  departureCode: "ICN",
+  arrivalAirportCode: "NRT",
   operationKey: "same-flight",
   departureDate: "2026-11-01",
   returnDate: "2026-11-" + String(tripDays).padStart(2, "0"),
@@ -138,6 +146,29 @@ test("published page exposes both duration filters and versioned assets", () => 
   for (const days of ["3", "4", "5", "6"]) {
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
   }
-  assert.match(htmlSource, /app\.js\?v=nonstop-only-20261029/);
-  assert.match(htmlSource, /styles\.css\?v=flight-duration-20261026/);
+  assert.match(htmlSource, /app\.js\?v=gimpo-origin-20261031/);
+  assert.match(htmlSource, /styles\.css\?v=gimpo-origin-20261031/);
+});
+
+test('origin selection separates ICN and GMP flights and preserves Tokyo city mapping', () => {
+  const helper = loadBrowserFunctions();
+  const flights = [
+    makeFlight(3, { departureCode:'ICN',arrivalAirportCode:'NRT',price:240000 }),
+    makeFlight(3, { departureCode:'GMP',arrivalAirportCode:'HND',price:190000 }),
+  ];
+  const groups = helper.groupFlightResults(flights);
+  assert.equal(groups.length, 2);
+  helper.setLiveDeparture('GMP');
+  assert.equal(helper.getFilteredLiveFlightGroups(groups).length,1);
+  assert.equal(helper.getFilteredLiveFlightGroups(groups)[0].arrivalAirportCode,'HND');
+  helper.setFlightResults(flights);
+  assert.match(helper.renderCityLiveFare({code:'NRT'}),/KRW 190000/);
+  helper.setLiveDeparture('ICN');
+  assert.match(helper.renderCityLiveFare({code:'NRT'}),/KRW 240000/);
+  const offers = [{nonstop:true,departureCode:'ICN'}, {nonstop:true,departureCode:'GMP'}];
+  helper.setDealDeparture('GMP');
+  assert.equal(helper.getDurationFilteredDeals(offers).length,1);
+  assert.equal(helper.getDurationFilteredDeals(offers)[0].departureCode,'GMP');
+  assert.match(htmlSource,/id="liveDepartureFilter"/);
+  assert.match(htmlSource,/id="dealDepartureFilter"/);
 });

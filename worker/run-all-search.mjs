@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { DESTINATIONS, searchGoogle } from "./google-playwright.mjs";
+import { searchGoogle } from "./google-playwright.mjs";
+import { SEARCH_ROUTES, getSearchRoute } from "./routes.mjs";
 
 const modeIndex = process.argv.indexOf("--mode");
 const mode = modeIndex >= 0 && process.argv[modeIndex + 1] === "full" ? "full" : "quick";
@@ -9,9 +10,9 @@ function argument(name, fallback) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : fallback;
 }
-const selectedCodes = argument('--cities', [...DESTINATIONS.keys()].join(',')).split(',');
-if (selectedCodes.some((code) => !DESTINATIONS.has(code))) throw new Error('Unknown city in --cities');
-const destinations = selectedCodes.map((code) => [code, DESTINATIONS.get(code)]);
+const selectedCodes = argument('--cities', [...SEARCH_ROUTES.keys()].join(',')).split(',');
+if (selectedCodes.some((code) => !SEARCH_ROUTES.has(code))) throw new Error('Unknown route in --cities');
+const destinations = selectedCodes.map((routeId) => getSearchRoute(routeId));
 const maxTripsValue = Number(argument('--max-trips', '0'));
 if (!Number.isInteger(maxTripsValue) || maxTripsValue < 0) throw new Error('--max-trips must be a nonnegative integer');
 const startDateValue = argument('--start-date', null);
@@ -46,14 +47,17 @@ async function saveProgress(status) {
   // Shard checkpoints remain local; only the publisher updates the public snapshot.
 }
 
-for (const [index, [destinationCode, destination]] of destinations.entries()) {
+for (const [index, route] of destinations.entries()) {
+  const { routeId, departureCode, arrivalAirportCode, destinationCode, destination } = route;
   const cityStartedAt = Date.now();
-  progress = { ...progress, cityIndex: index + 1, cityCode: destinationCode, city: destination, phase: "starting" };
-  console.log(`[${index + 1}/${destinations.length}] ${destination} (${destinationCode}) 검색 시작`);
+  progress = { ...progress, cityIndex: index + 1, cityCode: destinationCode, routeId, departureCode, city: destination, phase: "starting" };
+  console.log(`[${index + 1}/${destinations.length}] ${departureCode} → ${destination} (${arrivalAirportCode}) 검색 시작`);
 
   try {
     const cityResult = await searchGoogle({
-      destinationCode,
+      destinationCode: arrivalAirportCode,
+      cityCode: destinationCode,
+      departureCode,
       includeAllResults: true,
       mode,
       headless: true,
@@ -61,11 +65,13 @@ for (const [index, [destinationCode, destination]] of destinations.entries()) {
       maxTrips: maxTripsValue || Infinity,
       ...(startDateValue ? { startDate:new Date(`${startDateValue}T00:00:00`) } : {}),
       onProgress: (nextProgress) => {
-        console.log(`  ${destinationCode} [${nextProgress.current}/${nextProgress.total}] ${nextProgress.trip.departureDate} ~ ${nextProgress.trip.returnDate} (${nextProgress.phase}${nextProgress.cached ? ", cache" : ""})`);
+        console.log(`  ${routeId} [${nextProgress.current}/${nextProgress.total}] ${nextProgress.trip.departureDate} ~ ${nextProgress.trip.returnDate} (${nextProgress.phase}${nextProgress.cached ? ", cache" : ""})`);
         progress = {
           cityIndex: index + 1,
           totalCities: destinations.length,
           cityCode: destinationCode,
+          routeId,
+          departureCode,
           city: destination,
           ...nextProgress,
           resultCount: results.length,
@@ -77,17 +83,17 @@ for (const [index, [destinationCode, destination]] of destinations.entries()) {
         if (Date.now() - lastCheckpointAt >= 60000) await saveProgress('running');
       },
       onTripError: (failure) => {
-        errors.push({ destinationCode, destination, ...failure });
-        console.warn(`  ${destinationCode} ${failure.departureDate} ~ ${failure.returnDate}: 재시도 실패, 다음 일정으로 진행`);
+        errors.push({ routeId, departureCode, destinationCode, destination, ...failure });
+        console.warn(`  ${routeId} ${failure.departureDate} ~ ${failure.returnDate}: 재시도 실패, 다음 일정으로 진행`);
       },
     });
-    if (!results.some((result) => result.destinationCode === destinationCode)) results.push(...cityResult.results);
-    citySummaries.push({ destinationCode, status:cityResult.tripErrors.length ? 'partial' : 'succeeded', searchedTrips:cityResult.searchedTrips, elapsedSeconds:Math.round((Date.now() - cityStartedAt) / 1000) });
-    console.log(`[${index + 1}/${destinations.length}] ${destination} 완료: ${cityResult.searchedTrips}개 일정, ${cityResult.results.length}개 결과, ${Math.round((Date.now() - cityStartedAt) / 1000)}초`);
+    if (!results.some((result) => result.routeId === routeId)) results.push(...cityResult.results);
+    citySummaries.push({ routeId, departureCode, destinationCode, status:cityResult.tripErrors.length ? 'partial' : 'succeeded', searchedTrips:cityResult.searchedTrips, elapsedSeconds:Math.round((Date.now() - cityStartedAt) / 1000) });
+    console.log(`[${index + 1}/${destinations.length}] ${departureCode} → ${destination} 완료: ${cityResult.searchedTrips}개 일정, ${cityResult.results.length}개 결과, ${Math.round((Date.now() - cityStartedAt) / 1000)}초`);
   } catch (error) {
-    errors.push({ destinationCode, destination, error: error.message });
-    citySummaries.push({ destinationCode, status:'failed', elapsedSeconds:Math.round((Date.now() - cityStartedAt) / 1000) });
-    console.error(`[${index + 1}/${destinations.length}] ${destination} 실패: ${error.message}`);
+    errors.push({ routeId, departureCode, destinationCode, destination, error: error.message });
+    citySummaries.push({ routeId, departureCode, destinationCode, status:'failed', elapsedSeconds:Math.round((Date.now() - cityStartedAt) / 1000) });
+    console.error(`[${index + 1}/${destinations.length}] ${departureCode} → ${destination} 실패: ${error.message}`);
   }
 
   progress = { ...progress, resultCount: results.length, phase: "city-complete" };

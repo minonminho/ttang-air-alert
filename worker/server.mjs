@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { searchGoogle, DESTINATIONS } from "./google-playwright.mjs";
+import { SEARCH_ROUTES } from "./routes.mjs";
 import { readSnapshot } from "./supabase-store.mjs";
 
 const port = Number(process.env.TTANG_AUTOMATION_PORT || 8787);
@@ -152,33 +153,35 @@ async function runAllCitiesJob(job) {
   runningJobId = job.id;
   job.status = "running";
   await saveLatestFlightResults(job);
-  const destinations = [...DESTINATIONS.entries()];
+  const destinations = [...SEARCH_ROUTES.values()];
   try {
     for (let index = 0; index < destinations.length; index += 1) {
-      const [destinationCode, destination] = destinations[index];
+      const { routeId, departureCode, arrivalAirportCode, destinationCode, destination } = destinations[index];
       try {
         const headless = process.env.TTANG_HEADLESS == null ? process.platform !== "win32" : process.env.TTANG_HEADLESS !== "false";
         const result = await searchGoogle({
-          destinationCode,
+          destinationCode: arrivalAirportCode,
+          cityCode: destinationCode,
+          departureCode,
           includeAllResults: true,
           mode: job.mode,
           headless,
           onProgress: (progress) => {
-            job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, ...progress };
+            job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, routeId, departureCode, ...progress };
           },
           onResults: (items, trip) => {
             job.results.push(...items);
             job.searchedTrips = (job.searchedTrips || 0) + 1;
             job.resultCount = job.results.length;
-            job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, current: trip.index, total: trip.total, trip };
+            job.progress = { cityIndex: index + 1, totalCities: destinations.length, city: destination, cityCode: destinationCode, routeId, departureCode, current: trip.index, total: trip.total, trip };
           },
         });
-        if (!job.results.length && result.results.length) job.results.push(...result.results);
+        if (!job.results.some((flight) => flight.routeId === routeId) && result.results.length) job.results.push(...result.results);
         job.searchedTrips = Math.max(job.searchedTrips || 0, result.searchedTrips);
         job.resultCount = job.results.length;
         await saveLatestFlightResults(job, "running");
       } catch (error) {
-        job.errors.push({ destinationCode, destination, error: error.message });
+        job.errors.push({ routeId, departureCode, destinationCode, destination, error: error.message });
         throw error;
       }
     }
