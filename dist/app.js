@@ -244,7 +244,7 @@ function parseFlightLeg(leg) {
   if (!match) return null;
   const airportLabel = (value) => {
     const name = value.replace(/\s+Airport$/i, "").replace(/\s+International$/i, "");
-    const known = { "Gimpo": "김포", "Seoul Gimpo": "김포", "Incheon": "인천", "Narita": "도쿄 나리타", "Haneda": "도쿄 하네다", "New Chitose": "삿포로 신치토세", "Hakodate": "하코다테" };
+    const known = { "Gimpo": "김포", "Seoul Gimpo": "김포", "Incheon": "인천", "Narita": "도쿄 나리타", "Haneda": "도쿄 하네다", "Kansai": "오사카 간사이", "New Chitose": "삿포로 신치토세", "Hakodate": "하코다테" };
     return known[name] || name;
   };
   const departureDate = new Date(`${match[3]} 2020`);
