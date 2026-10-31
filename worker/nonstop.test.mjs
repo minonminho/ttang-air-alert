@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isNonstopFlightDescription, isNonstopRoundTrip } from './nonstop.mjs';
-import { readGoogleFlightRows, makeSearchUrl } from './google-playwright.mjs';
+import { readGoogleFlightRows, makeSearchUrl, isNoNonstopFlightsPage } from './google-playwright.mjs';
 import { mergeSearchResults } from './merge-search-results.mjs';
 
 const directLeg = { description:'From 179000 South Korean won round trip total. Nonstop flight with Jin Air. Leaves Incheon at 2:00 PM on Friday, November 6 and arrives at Okayama at 3:30 PM on Friday, November 6. Total duration 1 hr 30 min.' };
@@ -57,4 +57,32 @@ test('snapshot merger excludes any connection, even if a shard returned it', () 
   }],['OKJ'],'test');
   assert.equal(snapshot.status,'succeeded');
   assert.deepEqual(snapshot.results.map((item) => item.price),[170000]);
+});
+
+test('fallback reads visible Google Flights nonstop cards when accessible fare link is missing', async () => {
+  const fakeNode = (text) => ({
+    getClientRects: () => [{}],
+    getAttribute: () => null,
+    innerText: text,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+  });
+  const page = { locator: () => ({
+    evaluateAll: (callback) => callback([
+      fakeNode('4:05 PM – 6:00 PM\nJeju Air\n1 hr 55 min\nICN–FSZ\nNonstop\n₩323,700\nround trip'),
+      fakeNode('9:00 AM – 11:00 AM\nOther Airline\n4 hr\nICN–FSZ\n1 stop\n₩198,000\nround trip'),
+      fakeNode('7:10 AM – 9:10 AM\nJeju Air\n2 hr\nICN–FSZ\nNonstop\n₩353,700\nround trip'),
+    ]),
+  }) };
+  const rows = await readGoogleFlightRows(page);
+  assert.deepEqual(rows.map((row) => row.price), [323700, 353700]);
+  assert.ok(rows.every((row) => isNonstopFlightDescription(row.aria)));
+  assert.deepEqual(rows.map((row) => row.nodeIndex), [0, 2]);
+  assert.equal(rows[0].airline, 'Jeju Air');
+  assert.equal(rows[0].ariaLabel, null);
+});
+
+test('explicit no-nonstop-results is not a browser timeout', () => {
+  assert.equal(isNoNonstopFlightsPage('No results returned. No nonstop flights found'), true);
+  assert.equal(isNoNonstopFlightsPage('2 results returned. Departing flights Nonstop ₩323,700'), false);
 });
