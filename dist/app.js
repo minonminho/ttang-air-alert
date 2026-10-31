@@ -66,6 +66,7 @@ const dealSources = [
 
 let toastTimer;
 let todayDeals = [];
+let dealSourceStatuses = [];
 let activeSource = "all";
 let activeDealDuration = "all";
 let activeDealDeparture = "all";
@@ -629,7 +630,7 @@ function renderSourceFilters() {
   ];
   container.innerHTML = buttons.map((source) => `
     <button class="source-filter${activeSource === source.id ? " active" : ""}" type="button" data-source="${source.id}">
-      <span>${source.label}</span><small>${source.count}개</small>
+      <span>${source.label}</span><small>${source.count}개${dealSourceStatuses.some((item) => item.id === source.id && item.status === "blocked") ? " · 접근 제한" : dealSourceStatuses.some((item) => item.id === source.id && item.status === "unverified") ? " · 직항 미확인" : ""}</small>
     </button>`).join("");
   container.querySelectorAll(".source-filter").forEach((button) => {
     button.addEventListener("click", () => {
@@ -645,7 +646,9 @@ function renderDeals(deals) {
   const list = document.querySelector("#dealList");
   document.querySelector("#mapDealCount").textContent = `오늘의 특가 ${deals.length}개`;
   if (!deals.length) {
-    list.innerHTML = '<div class="empty-state">오늘은 조건에 맞는 특가가 아직 없어요.</div>';
+    const sourceState = dealSourceStatuses.find((item) => item.id === activeSource);
+    const reason = sourceState?.status === "blocked" ? "판매처에서 자동 수집 접근을 제한하고 있습니다." : sourceState?.status === "unverified" ? "판매처의 항공권은 직항 여부가 확인되지 않아 제외했습니다." : "오늘은 조건에 맞는 특가가 아직 없어요.";
+    list.innerHTML = `<div class="empty-state">${escapeHtml(reason)}</div>`;
     return;
   }
   list.innerHTML = deals.map((deal) => `
@@ -1096,12 +1099,14 @@ async function loadDeals() {
     if (!response.ok) throw new Error(`deals.json HTTP ${response.status}`);
     const payload = await response.json();
     todayDeals = Array.isArray(payload.deals) ? payload.deals : [];
+    dealSourceStatuses = Array.isArray(payload.sourceStatuses) ? payload.sourceStatuses : [];
     renderSourceFilters();
     renderDeals(getVisibleDeals());
     if (selectedCity) showCityDeals(selectedCity);
   } catch (error) {
     console.warn("오늘의 특가를 불러오지 못했습니다.", error);
     todayDeals = [];
+    dealSourceStatuses = [];
     renderDeals(todayDeals);
   }
 }
