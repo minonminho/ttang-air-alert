@@ -225,7 +225,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
     if (outboundIndex > 0) {
       if (departureNavigation === 'history') {
         await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 });
-        await page.getByText(/^(Top|Other) departing flights$/).first().waitFor({ timeout: timeoutMs });
+        await page.getByText(/^(?:(?:Top|Other) )?departing flights$/i).first().waitFor({ timeout: timeoutMs });
       } else {
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
       }
@@ -238,7 +238,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
     } else {
       await page.locator(FLIGHT_ROW_SELECTOR).nth(currentOutbound.nodeIndex).click();
     }
-    await page.getByText(/Choose return to/).first().waitFor({ timeout: timeoutMs });
+    await page.getByText(/Choose return to|Returning flights/i).first().waitFor({ timeout: timeoutMs });
     if (!await waitForFlightPrices(page, timeoutMs, networkEvents, 'return-results')) continue;
     const returnRows = await readGoogleFlightRows(page);
     for (const inbound of returnRows.slice(0, TOP_RESULTS)) {
