@@ -12,6 +12,8 @@ const TOP_RESULTS = 5;
 const MIN_PRICE = 100000;
 const QUICK_REFINE_WEEKS = 3;
 const DEFAULT_SEARCH_DELAY_MS = 1500;
+// Google Flights sometimes renders fare cards without the old accessible price link.
+const FLIGHT_ROW_SELECTOR = 'li, [role="listitem"], [role="button"], [role="option"]';
 
 export const DESTINATIONS = new Map([
   ["NRT", "도쿄"], ["KIX", "오사카"], ["NGO", "나고야"], ["FUK", "후쿠오카"],
@@ -126,6 +128,10 @@ function selectRefinementTrips({ allTrips, initialTrips, results, weeks = QUICK_
   return allTrips.filter((trip) => selectedWeeks.has(weekKey(trip.departureDate)) && !initialKeys.has(tripKey(trip)));
 }
 
+export function isNoNonstopFlightsPage(text) {
+  return /No nonstop flights found|No results returned\.|No matching flights|No departing flights|No returning flights|항공편을 찾을 수 없/i.test(String(text));
+}
+
 function failureFromPage(text) {
   const normalized = String(text).replace(/\s+/g, " ");
   if (/unusual traffic|not a robot|captcha|접근이 제한|비정상적인 트래픽/i.test(normalized)) {
@@ -140,8 +146,8 @@ async function waitForFlightPrices(page, timeoutMs, networkEvents, stage = 'depa
     const text = await page.locator("body").innerText();
     const failure = failureFromPage(text);
     if (failure) throw new Error(failure);
-    if (await page.locator('li [role="link"][aria-label*="South Korean won"]').count()) return true;
-    if (/No flights found|No matching flights|No departing flights|No returning flights|항공편을 찾을 수 없/i.test(text)) return false;
+    if (isNoNonstopFlightsPage(text)) return false;
+    if ((await readGoogleFlightRows(page)).length) return true;
     await page.waitForTimeout(1000);
   }
   const failed = networkEvents.filter((event) => event.kind === "requestfailed" || event.status >= 400).slice(-3);
@@ -165,24 +171,42 @@ async function saveSearchDiagnostics(page, destinationCode, trip, error, network
 }
 
 export async function readGoogleFlightRows(page) {
-  const rows = await page.locator('li').evaluateAll((nodes) => nodes.flatMap((node) => {
+  const rows = await page.locator(FLIGHT_ROW_SELECTOR).evaluateAll((nodes) => nodes.flatMap((node, nodeIndex) => {
+    if (!node.getClientRects().length) return [];
     const link = node.querySelector('[role="link"][aria-label*="South Korean won"]');
-    if (!link || !node.getClientRects().length) return [];
-    const aria = link.getAttribute('aria-label') || '';
-    const price = Number(aria.match(/(?:From\s+)?([\d,]+) South Korean won/i)?.[1]?.replaceAll(',', ''));
+    const accessibleLabel = link?.getAttribute('aria-label') || node.getAttribute?.('aria-label') || '';
     const text = node.innerText || '';
-    const legs = [...node.querySelectorAll('[data-travelimpactmodelwebsiteurl]')].map((element) => element.getAttribute('data-travelimpactmodelwebsiteurl'));
-    return [{ price, aria, text, legs: [...new Set(legs)] }];
+    const labelPrice = accessibleLabel.match(/(?:From\\s+)?([\\d,]+) South Korean won/i)?.[1];
+    const visiblePrice = text.match(/(?:₩|KRW\\s*)([\\d,]+)/i)?.[1];
+    const price = Number((labelPrice || visiblePrice || '').replaceAll(',', ''));
+    const accessibleNonstop = /\\bnon[\\s-]?stop\\s+flight\\b/i.test(accessibleLabel);
+    // Trust only a flight card that explicitly says nonstop; never infer directness from price alone.
+    const visibleNonstop = /\\bnon[\\s-]?stop\\b/i.test(text)
+      && !/\\b(?:\\d+\\s+stops?|connecting\\s+flight|one\\s+stop)\\b/i.test(text);
+    if (!Number.isFinite(price) || price <= 0 || price >= 10000000 || (!accessibleNonstop && !visibleNonstop)) return [];
+    const airline = accessibleLabel.match(/flight with (.*?)\\./i)?.[1]?.trim()
+      || text.match(/[AP]M\\s*[^\\n]*\\n\\s*([^\\n]+)/i)?.[1]?.trim()
+      || '기타';
+    const description = accessibleNonstop ? accessibleLabel
+      : `From ${price} South Korean won round trip total. Nonstop flight with ${airline}. ${text.replace(/\\s+/g, ' ').trim()}`;
+    const legs = [...node.querySelectorAll('[data-travelimpactmodelwebsiteurl]')]
+      .map((element) => element.getAttribute('data-travelimpactmodelwebsiteurl'))
+      .filter(Boolean);
+    return [{ price, aria: description, ariaLabel: link ? accessibleLabel : null, text, airline, legs: [...new Set(legs)], nodeIndex }];
   }));
   const unique = new Map();
   for (const row of rows) {
-    if (!Number.isFinite(row.price) || row.price <= 0 || row.price >= 10000000) continue;
     if (!isNonstopFlightDescription(row.aria)) continue;
-    // Stable identity comes from the rendered flight number, route and time, not prices/emissions.
-    const description = row.aria.replace(/^(?:From\s+)?[\d,]+ South Korean won round trip total\.\s*/i, '');
-    const schedule = description.match(/Leaves (.*?)\. Total duration/)?.[1] || description;
-    row.operation = `${row.legs.length ? row.legs.map((leg) => new URL(leg).searchParams.get('itinerary')?.replace(/-\d{8}(?=[,;]|$)/g, '')).join('|') : description}|${schedule}`.replace(/ on [A-Za-z]+, [A-Za-z]+ \d+/g, '').replace(/\s+/g, ' ').trim();
-    row.airline = row.aria.match(/flight with (.*?)\./i)?.[1] || '기타';
+    // Stable identity comes from the flight number/route/time rather than price or emissions.
+    const description = row.aria.replace(/^(?:From\\s+)?[\\d,]+ South Korean won round trip total\\.\\s*/i, '');
+    const schedule = description.match(/Leaves (.*?)\\. Total duration/)?.[1]
+      || row.text.replace(/(?:₩|KRW\\s*)[\\d,]+/gi, '').replace(/\\d+ kg CO2e/gi, '');
+    const legKeys = row.legs.map((leg) => {
+      try { return new URL(leg).searchParams.get('itinerary')?.replace(/-\\d{8}(?=[,;]|$)/g, '') || ''; }
+      catch { return ''; }
+    }).filter(Boolean);
+    row.operation = `${legKeys.join('|') || row.airline}|${schedule}`
+      .replace(/ on [A-Za-z]+, [A-Za-z]+ \\d+/g, '').replace(/\\s+/g, ' ').trim();
     unique.set(`${row.price}|${row.operation}`, row);
   }
   return [...unique.values()].sort((a, b) => a.price - b.price);
@@ -209,7 +233,11 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
     }
     const currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
     if (!currentOutbound) throw new Error('Google Flights 결과가 변경되어 가는 편을 다시 확인해야 합니다.');
-    await page.locator('li').filter({ has: page.getByRole('link', { name: currentOutbound.aria, exact: true }) }).first().click();
+    if (currentOutbound.ariaLabel) {
+      await page.locator('li').filter({ has: page.getByRole('link', { name: currentOutbound.ariaLabel, exact: true }) }).first().click();
+    } else {
+      await page.locator(FLIGHT_ROW_SELECTOR).nth(currentOutbound.nodeIndex).click();
+    }
     await page.getByText(/Choose return to/).first().waitFor({ timeout: timeoutMs });
     if (!await waitForFlightPrices(page, timeoutMs, networkEvents, 'return-results')) continue;
     const returnRows = await readGoogleFlightRows(page);
@@ -247,11 +275,11 @@ export async function searchGoogle({
   headless = true,
   searchDelayMs = DEFAULT_SEARCH_DELAY_MS,
   cacheTtlHours = Number(process.env.TTANG_FLIGHT_CACHE_HOURS || 24),
-  resultTimeoutMs = Number(process.env.TTANG_RESULT_TIMEOUT_MS || 90000),
+  resultTimeoutMs = Number(process.env.TTANG_RESULT_TIMEOUT_MS || 20000),
   maxTrips = Infinity,
   useCache = true,
   departureNavigation = 'history',
-  tripTimeoutMs = 180000,
+  tripTimeoutMs = 60000,
 } = {}) {
   if (!DESTINATIONS.has(destinationCode)) throw new Error(`지원하지 않는 도시 코드입니다: ${destinationCode}`);
 
@@ -310,7 +338,7 @@ export async function searchGoogle({
           options = await withSearchDeadline(() => retrySearchOnce(async () => {
             const response = await activePage.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
             if (response && response.status() >= 400) throw new Error(`Google Flights 페이지 응답 오류: HTTP ${response.status()}`);
-            const timeoutMs = Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 90000);
+            const timeoutMs = Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 20000);
             const hasResults = await waitForFlightPrices(activePage, timeoutMs, networkEvents);
             return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents, departureNavigation, mode) : [];
           }, { onRetry: () => console.warn(`${destinationCode} ${trip.departureDate} ~ ${trip.returnDate}: 일시적인 로딩 실패, 1회 재시도`) }), tripTimeoutMs, async (error) => {
