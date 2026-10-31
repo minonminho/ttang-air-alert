@@ -132,6 +132,10 @@ export function isNoNonstopFlightsPage(text) {
   return /No nonstop flights found|No results returned\.|No matching flights|No departing flights|No returning flights|항공편을 찾을 수 없/i.test(String(text));
 }
 
+export function isFlightBackendError(text) {
+  return /Oops,? something went wrong|Unable to load results|Try again later/i.test(String(text));
+}
+
 function failureFromPage(text) {
   const normalized = String(text).replace(/\s+/g, " ");
   if (/unusual traffic|not a robot|captcha|접근이 제한|비정상적인 트래픽/i.test(normalized)) {
@@ -142,10 +146,28 @@ function failureFromPage(text) {
 
 async function waitForFlightPrices(page, timeoutMs, networkEvents, stage = 'departure-results') {
   const deadline = Date.now() + timeoutMs;
+  let backendReloads = 0;
   while (Date.now() < deadline) {
     const text = await page.locator("body").innerText();
     const failure = failureFromPage(text);
     if (failure) throw new Error(failure);
+    // Google shows "No results returned" even when its shopping API failed.
+    // Treat the explicit Oops/Reload screen as transient, never as a valid empty fare.
+    if (isFlightBackendError(text)) {
+      // Google offers a normal, public Reload action for a failed shopping response.
+      if (backendReloads++ === 0) {
+        const reload = page.getByText(/^Reload$/).first();
+        if (await reload.count()) {
+          await reload.click({ timeout: 3000 }).catch(() => {});
+          await page.waitForTimeout(1000);
+          continue;
+        }
+      }
+      const error = new Error(`Google Flights 데이터 요청 오류입니다. 단계: ${stage}. 화면에서 다시 시도를 요청했습니다.`);
+      error.code = 'FLIGHT_RESULTS_TIMEOUT';
+      error.stage = stage;
+      throw error;
+    }
     if (isNoNonstopFlightsPage(text)) return false;
     if ((await readGoogleFlightRows(page)).length) return true;
     await page.waitForTimeout(1000);
@@ -225,7 +247,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
     if (outboundIndex > 0) {
       if (departureNavigation === 'history') {
         await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 });
-        await page.getByText(/^(?:(?:Top|Other) )?departing flights$/i).first().waitFor({ timeout: timeoutMs });
+        // Headings vary across destinations and Google UI variants; wait for actual fare rows below.
       } else {
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
       }
@@ -238,7 +260,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
     } else {
       await page.locator(FLIGHT_ROW_SELECTOR).nth(currentOutbound.nodeIndex).click();
     }
-    await page.getByText(/Choose return to|Returning flights/i).first().waitFor({ timeout: timeoutMs });
+    // Returning-flight heading can disappear on API errors; the page content check below handles both states.
     if (!await waitForFlightPrices(page, timeoutMs, networkEvents, 'return-results')) continue;
     const returnRows = await readGoogleFlightRows(page);
     for (const inbound of returnRows.slice(0, TOP_RESULTS)) {

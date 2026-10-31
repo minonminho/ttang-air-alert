@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isNonstopFlightDescription, isNonstopRoundTrip } from './nonstop.mjs';
-import { readGoogleFlightRows, makeSearchUrl, isNoNonstopFlightsPage } from './google-playwright.mjs';
+import { readGoogleFlightRows, makeSearchUrl, isNoNonstopFlightsPage, isFlightBackendError } from './google-playwright.mjs';
 import { mergeSearchResults } from './merge-search-results.mjs';
 
 const directLeg = { description:'From 179000 South Korean won round trip total. Nonstop flight with Jin Air. Leaves Incheon at 2:00 PM on Friday, November 6 and arrives at Okayama at 3:30 PM on Friday, November 6. Total duration 1 hr 30 min.' };
@@ -85,4 +85,12 @@ test('fallback reads visible Google Flights nonstop cards when accessible fare l
 test('explicit no-nonstop-results is not a browser timeout', () => {
   assert.equal(isNoNonstopFlightsPage('No results returned. No nonstop flights found'), true);
   assert.equal(isNoNonstopFlightsPage('2 results returned. Departing flights Nonstop ₩323,700'), false);
+});
+
+test('Google Flights Oops page is distinguished from genuine no-nonstop inventory', () => {
+  const failedShoppingApi = 'Search results No results returned. Oops, something went wrong. Reload';
+  assert.equal(isFlightBackendError(failedShoppingApi), true);
+  assert.equal(isNoNonstopFlightsPage(failedShoppingApi), true); // Backend check must take precedence.
+  assert.equal(isFlightBackendError('No nonstop flights found'), false);
+  assert.equal(isFlightBackendError('Nonstop flight with ANA, KRW 520,000'), false);
 });
