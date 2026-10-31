@@ -49,3 +49,17 @@ node .\crawler\update-snapshot.mjs
 땡처리닷컴 예약 버튼의 실제 `href`는 `#none`이고 사이트 JS가 `ttang_inwon.do` 인원 선택 창을 만들기 때문에, `reservationUrl`은 그 동작을 재현한 예약 진입 링크입니다. 모두투어는 `stockPackageNo`를 사용하는 예약 페이지 링크를 생성하고, 하나투어는 `fareId`를 포함한 항공권 상세 링크를 생성하며, 노랑풍선은 해당 도시의 할인항공권 조회 링크를 생성하고, 네이버 항공권은 날짜·기간이 지정된 검색 링크를 생성합니다.
 
 운영에 넣기 전에는 요청 주기·동시성·재시도 횟수를 낮게 유지하고, 사이트 이용약관과 robots 정책을 확인해야 합니다. 가격 데이터는 판매처에서 변경될 수 있으므로 알림 발송 전 재확인 단계가 필요합니다.
+
+## 땡처리닷컴 공식 모바일 목록
+
+기존 `www.ttang.com/ttangair/search/ttang/list.do`는 자동 요청에 HTTP 403을 반환하는 경우가 있어 다음 두 모바일 페이지를 사용합니다.
+
+- **오늘 오픈:** `https://mm.ttang.com/ttangair/search/discount/today.do?trip=RT&gubun=T` → 공개 목록 요청 `/ttangair/search/discount/listAct.do`
+- **날짜별 땡처리:** `https://mm.ttang.com/ttangair/search/promotion/ttangIndex.do` → 공개 날짜별 목록 요청 `/ttangair/search/promotion/allTtangListAct.do`
+
+날짜별 API는 출발일 `depdate0`를 기준으로 오늘부터 **3개월 후 같은 날짜까지** 하루씩 검색합니다(월말은 마지막 날짜로 보정). 왕복(`RT`), 경유 0회(`viaCnt=0`), 일본행, 인천(ICN)/김포(GMP), 30만 원 미만만 수집하며 가격은 API의 `totalPrice`를 사용합니다. 오늘 오픈 특가의 `fromSupplyDate/toSupplyDate`는 여행일정이 아니라 **출발 가능한 기간**이며, 예약 전 판매처에서 날짜·가격을 재확인해야 합니다.
+
+사이트가 403/429로 응답하면 재시도하거나 차단을 우회하지 않고 종료합니다. 이전에 검증한 특가가 12시간 이내이고 아직 유효한 경우에만 '이전 수집 가격' 표시와 함께 임시 보존합니다. 이 경우 데이터가 실시간 가격이라는 뜻은 아닙니다. 응답 환경에 따라 GitHub Actions에서 접근이 제한될 수 있습니다.
+
+크롤러 단독 실행: `node crawler/ttangair-crawler.mjs` (약 3개월치 날짜별 검색).
+2일 스모크 테스트: `TTANG_MAX_DAYS=2 node crawler/ttangair-crawler.mjs`.
