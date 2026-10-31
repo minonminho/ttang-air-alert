@@ -176,19 +176,19 @@ export async function readGoogleFlightRows(page) {
     const link = node.querySelector('[role="link"][aria-label*="South Korean won"]');
     const accessibleLabel = link?.getAttribute('aria-label') || node.getAttribute?.('aria-label') || '';
     const text = node.innerText || '';
-    const labelPrice = accessibleLabel.match(/(?:From\\s+)?([\\d,]+) South Korean won/i)?.[1];
-    const visiblePrice = text.match(/(?:₩|KRW\\s*)([\\d,]+)/i)?.[1];
+    const labelPrice = accessibleLabel.match(/(?:From\s+)?([\d,]+) South Korean won/i)?.[1];
+    const visiblePrice = text.match(/(?:₩|KRW\s*)([\d,]+)/i)?.[1];
     const price = Number((labelPrice || visiblePrice || '').replaceAll(',', ''));
-    const accessibleNonstop = /\\bnon[\\s-]?stop\\s+flight\\b/i.test(accessibleLabel);
+    const accessibleNonstop = /\bnon[\s-]?stop\s+flight\b/i.test(accessibleLabel);
     // Trust only a flight card that explicitly says nonstop; never infer directness from price alone.
-    const visibleNonstop = /\\bnon[\\s-]?stop\\b/i.test(text)
-      && !/\\b(?:\\d+\\s+stops?|connecting\\s+flight|one\\s+stop)\\b/i.test(text);
+    const visibleNonstop = /\bnon[\s-]?stop\b/i.test(text)
+      && !/\b(?:\d+\s+stops?|connecting\s+flight|one\s+stop)\b/i.test(text);
     if (!Number.isFinite(price) || price <= 0 || price >= 10000000 || (!accessibleNonstop && !visibleNonstop)) return [];
-    const airline = accessibleLabel.match(/flight with (.*?)\\./i)?.[1]?.trim()
-      || text.match(/[AP]M\\s*[^\\n]*\\n\\s*([^\\n]+)/i)?.[1]?.trim()
+    const airline = accessibleLabel.match(/flight with (.*?)\./i)?.[1]?.trim()
+      || text.match(/[AP]M\s*[^\n]*\n\s*([^\n]+)/i)?.[1]?.trim()
       || '기타';
     const description = accessibleNonstop ? accessibleLabel
-      : `From ${price} South Korean won round trip total. Nonstop flight with ${airline}. ${text.replace(/\\s+/g, ' ').trim()}`;
+      : `From ${price} South Korean won round trip total. Nonstop flight with ${airline}. ${text.replace(/\s+/g, ' ').trim()}`;
     const legs = [...node.querySelectorAll('[data-travelimpactmodelwebsiteurl]')]
       .map((element) => element.getAttribute('data-travelimpactmodelwebsiteurl'))
       .filter(Boolean);
@@ -198,15 +198,15 @@ export async function readGoogleFlightRows(page) {
   for (const row of rows) {
     if (!isNonstopFlightDescription(row.aria)) continue;
     // Stable identity comes from the flight number/route/time rather than price or emissions.
-    const description = row.aria.replace(/^(?:From\\s+)?[\\d,]+ South Korean won round trip total\\.\\s*/i, '');
-    const schedule = description.match(/Leaves (.*?)\\. Total duration/)?.[1]
-      || row.text.replace(/(?:₩|KRW\\s*)[\\d,]+/gi, '').replace(/\\d+ kg CO2e/gi, '');
+    const description = row.aria.replace(/^(?:From\s+)?[\d,]+ South Korean won round trip total\.\s*/i, '');
+    const schedule = description.match(/Leaves (.*?)\. Total duration/)?.[1]
+      || row.text.replace(/(?:₩|KRW\s*)[\d,]+/gi, '').replace(/\d+ kg CO2e/gi, '');
     const legKeys = row.legs.map((leg) => {
-      try { return new URL(leg).searchParams.get('itinerary')?.replace(/-\\d{8}(?=[,;]|$)/g, '') || ''; }
+      try { return new URL(leg).searchParams.get('itinerary')?.replace(/-\d{8}(?=[,;]|$)/g, '') || ''; }
       catch { return ''; }
     }).filter(Boolean);
     row.operation = `${legKeys.join('|') || row.airline}|${schedule}`
-      .replace(/ on [A-Za-z]+, [A-Za-z]+ \\d+/g, '').replace(/\\s+/g, ' ').trim();
+      .replace(/ on [A-Za-z]+, [A-Za-z]+ \d+/g, '').replace(/\s+/g, ' ').trim();
     unique.set(`${row.price}|${row.operation}`, row);
   }
   return [...unique.values()].sort((a, b) => a.price - b.price);
