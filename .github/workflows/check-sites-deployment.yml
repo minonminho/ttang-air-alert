@@ -1,0 +1,21 @@
+name: Verify ChatGPT Sites live deployment
+on:
+  pull_request:
+    paths:
+      - "scripts/check-sites-deployment.mjs"
+      - ".github/workflows/check-sites-deployment.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check scripts/check-sites-deployment.mjs
+      - name: Compare deployed ChatGPT Sites HTML and JavaScript with repository
+        run: node scripts/check-sites-deployment.mjs
