@@ -1106,6 +1106,11 @@ async function loadDeals() {
     const payload = await response.json();
     todayDeals = Array.isArray(payload.deals) ? payload.deals : [];
     dealSourceStatuses = Array.isArray(payload.sourceStatuses) ? payload.sourceStatuses : [];
+    const blockedSources = dealSourceStatuses.filter((source) => source.status === "blocked" || source.status === "error" || source.status === "unverified");
+    const statusLabel = document.querySelector("#dealCollectionStatus");
+    if (statusLabel) statusLabel.textContent = blockedSources.length
+      ? `일부 판매처 수집 미완료 (${blockedSources.length}곳) · 인천·김포`
+      : "판매처 수집 완료 · 인천·김포";
     renderSourceFilters();
     renderDeals(getVisibleDeals());
     if (selectedCity) showCityDeals(selectedCity);
@@ -1113,6 +1118,8 @@ async function loadDeals() {
     console.warn("오늘의 특가를 불러오지 못했습니다.", error);
     todayDeals = [];
     dealSourceStatuses = [];
+    const statusLabel = document.querySelector("#dealCollectionStatus");
+    if (statusLabel) statusLabel.textContent = "판매처 데이터 로딩 실패";
     renderDeals(todayDeals);
   }
 }
