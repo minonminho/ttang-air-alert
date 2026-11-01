@@ -146,7 +146,8 @@ test("published page exposes both duration filters and versioned assets", () => 
   for (const days of ["3", "4", "5", "6"]) {
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
   }
-  assert.match(htmlSource, /app\.js\?v=gimpo-origin-20261031/);
+  assert.match(htmlSource, /app\.js\?v=source-status-20261101/);
+  assert.match(htmlSource, /id="dealCollectionStatus"/);
   assert.match(htmlSource, /styles\.css\?v=gimpo-origin-20261031/);
 });
 
