@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-31T19:46:28.621Z",
+  "fetchedAt": "2026-11-01T20:59:55.236Z",
   "sources": [
     {
       "id": "ttang",
@@ -35,8 +35,8 @@
     {
       "id": "modetour",
       "status": "ok",
-      "fetchedCount": 20,
-      "publishedCount": 20,
+      "fetchedCount": 19,
+      "publishedCount": 19,
       "reason": ""
     },
     {
@@ -89,6 +89,26 @@
       "sourceName": "모두투어",
       "departure": "인천",
       "departureCode": "ICN",
+      "arrival": "오사카",
+      "arrivalCode": "KIX",
+      "airline": "트리니티 항공",
+      "airlineCode": "TW",
+      "nonstop": true,
+      "fromDate": "2026-11-04",
+      "toDate": "2026-11-06",
+      "tripType": "왕복",
+      "price": 249000,
+      "minimumPassengers": 1,
+      "masterId": "20040810",
+      "gubun": "MODETOUR",
+      "reservationUrl": "https://www.modetour.com/flights/discount-flight/reservation-page?id=20040810&adult=1&child=0&infant=0&step=1",
+      "sourceUrl": "https://www.modetour.com/flights/discount-flight"
+    },
+    {
+      "sourceId": "modetour",
+      "sourceName": "모두투어",
+      "departure": "인천",
+      "departureCode": "ICN",
       "arrival": "오키나와",
       "arrivalCode": "OKA",
       "airline": "트리니티 항공",
@@ -102,26 +122,6 @@
       "masterId": "20130952",
       "gubun": "MODETOUR",
       "reservationUrl": "https://www.modetour.com/flights/discount-flight/reservation-page?id=20130952&adult=1&child=0&infant=0&step=1",
-      "sourceUrl": "https://www.modetour.com/flights/discount-flight"
-    },
-    {
-      "sourceId": "modetour",
-      "sourceName": "모두투어",
-      "departure": "인천",
-      "departureCode": "ICN",
-      "arrival": "후쿠오카",
-      "arrivalCode": "FUK",
-      "airline": "이스타항공",
-      "airlineCode": "ZE",
-      "nonstop": true,
-      "fromDate": "2026-11-10",
-      "toDate": "2026-11-12",
-      "tripType": "왕복",
-      "price": 269000,
-      "minimumPassengers": 1,
-      "masterId": "20122637",
-      "gubun": "MODETOUR",
-      "reservationUrl": "https://www.modetour.com/flights/discount-flight/reservation-page?id=20122637&adult=1&child=0&infant=0&step=1",
       "sourceUrl": "https://www.modetour.com/flights/discount-flight"
     },
     {
@@ -203,26 +203,6 @@
       "gubun": "HANATOUR",
       "reservationUrl": "https://www.hanatour.com/trp/air/CHPC0AIR0222M201?fareId=RTF%5E3163536%5ETW0303ICNKIX-H5%5ETW0303ICNKIX-18%5E20261130%5ET%5EKRW%5E6556461%5E5417154%5E%5E1%5E0%5E0&depPlcNm=%EC%9D%B8%EC%B2%9C+%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD&arrPlcNm=%EA%B0%84%EC%82%AC%EC%9D%B4+%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD&itnrTypeCd=RT&adtCnt=1&chdCnt=0&infCnt=0&cabinType=Y&cardPromId=&eventCd=",
       "sourceUrl": "https://www.hanatour.com/trp/air/CHPC0AIR0233M200"
-    },
-    {
-      "sourceId": "modetour",
-      "sourceName": "모두투어",
-      "departure": "인천",
-      "departureCode": "ICN",
-      "arrival": "오사카",
-      "arrivalCode": "KIX",
-      "airline": "트리니티 항공",
-      "airlineCode": "TW",
-      "nonstop": true,
-      "fromDate": "2026-11-09",
-      "toDate": "2026-11-11",
-      "tripType": "왕복",
-      "price": 289000,
-      "minimumPassengers": 1,
-      "masterId": "20040750",
-      "gubun": "MODETOUR",
-      "reservationUrl": "https://www.modetour.com/flights/discount-flight/reservation-page?id=20040750&adult=1&child=0&infant=0&step=1",
-      "sourceUrl": "https://www.modetour.com/flights/discount-flight"
     },
     {
       "sourceId": "modetour",
