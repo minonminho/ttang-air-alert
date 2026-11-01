@@ -181,7 +181,10 @@ export async function crawlTtangAir({
     const form = new URLSearchParams(calendarForm);
     form.set("depdate0",date);
     const items = parseMobileOffers(await fetchOffers(PROMOTION_ENDPOINT,PROMOTION_URL,form),{...options,kind:"calendar"});
-    for (const item of items) results.set([item.collection,item.departureCode,item.arrivalCode,item.masterId,item.fromDate,item.toDate,item.price].join("|"),item);
+    for (const item of items) {
+      const key = [item.collection,item.departureCode,item.arrivalCode,item.masterId,item.fromDate,item.toDate,item.durationDays].join("|");
+      if (!results.has(key) || item.price < results.get(key).price) results.set(key,item);
+    }
     if ((index+1)%10===0 || index===days.length-1) console.log("[ttang] calendar " + (index+1) + "/" + days.length + ", offers=" + results.size);
   }
   return [...results.values()].sort((a,b)=>a.price-b.price);
