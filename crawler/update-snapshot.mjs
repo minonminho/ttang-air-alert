@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, appendFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { crawlTtangAir, SOURCE_ID as TTANG_SOURCE_ID, SOURCE_NAME as TTANG_SOURCE_NAME, TODAY_URL, PROMOTION_URL } from "./ttangair-crawler.mjs";
@@ -63,6 +63,27 @@ const sourceStatuses = crawls.map((result, index) => {
 });
 for (const state of sourceStatuses) {
   console.log(`[source-status] ${state.id}: ${state.status} (fetched=${state.fetchedCount}, nonstop=${state.publishedCount}) ${state.reason}`);
+  if (state.status === "blocked" || state.status === "error" || state.status === "unverified") {
+    // Preserve a successful multi-source publish while making an incomplete supplier scrape visible.
+    console.log(`::warning title=${sources.find((source) => source.id === state.id)?.label} 수집 미완료::${state.reason || state.status}`);
+  }
+}
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const summary = [
+    "## 판매처별 특가 수집 결과",
+    "",
+    "| 판매처 | 상태 | 조회 건수 | 게시 건수 | 상세 |",
+    "| --- | --- | ---: | ---: | --- |",
+    ...sourceStatuses.map((state) => {
+      const label = sources.find((source) => source.id === state.id)?.label || state.id;
+      const reason = (state.reason || "정상").replace(/\|/g, "/").replace(/\r?\n/g, " ");
+      return `| ${label} | ${state.status} | ${state.fetchedCount} | ${state.publishedCount} | ${reason} |`;
+    }),
+    "",
+    "> Actions 성공은 전체 수집 작업의 완료를 뜻하며, 개별 판매처 수집 성공을 보장하지 않습니다.",
+    "",
+  ].join("\n");
+  await appendFile(process.env.GITHUB_STEP_SUMMARY, summary, "utf8");
 }
 const deals = crawls.flatMap((result, index) => {
   if (result.status === "fulfilled") return result.value.filter((deal) => deal.nonstop === true);
