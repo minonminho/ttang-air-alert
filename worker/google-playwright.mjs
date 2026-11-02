@@ -4,6 +4,7 @@ import path from "node:path";
 import { getFreshFlightCacheEntry, loadFlightCache, makeFlightCacheKey, saveFlightCache } from "./flight-cache.mjs";
 import { isTransientSearchError, retrySearchOnce, withSearchDeadline } from "./search-recovery.mjs";
 import { isNonstopFlightDescription, isNonstopRoundTrip } from "./nonstop.mjs";
+import { isVerifiedFlightLeg, isVerifiedFlightResult } from "./flight-validation.mjs";
 
 const GOOGLE_BASE_URL = "https://www.google.com/travel/flights";
 const DEFAULT_DEPARTURE_CODE = "ICN";
@@ -13,7 +14,7 @@ const MIN_PRICE = 100000;
 const QUICK_REFINE_WEEKS = 3;
 const DEFAULT_SEARCH_DELAY_MS = 1500;
 // Google Flights sometimes renders fare cards without the old accessible price link.
-const FLIGHT_ROW_SELECTOR = 'li, [role="listitem"], [role="button"], [role="option"]';
+const FLIGHT_ROW_SELECTOR = 'li';
 
 export const DESTINATIONS = new Map([
   ["NRT", "도쿄"], ["KIX", "오사카"], ["NGO", "나고야"], ["FUK", "후쿠오카"],
@@ -201,16 +202,15 @@ export async function readGoogleFlightRows(page) {
     const labelPrice = accessibleLabel.match(/(?:From\s+)?([\d,]+) South Korean won/i)?.[1];
     const visiblePrice = text.match(/(?:₩|KRW\s*)([\d,]+)/i)?.[1];
     const price = Number((labelPrice || visiblePrice || '').replaceAll(',', ''));
-    const accessibleNonstop = /\bnon[\s-]?stop\s+flight\b/i.test(accessibleLabel);
-    // Trust only a flight card that explicitly says nonstop; never infer directness from price alone.
-    const visibleNonstop = /\bnon[\s-]?stop\b/i.test(text)
-      && !/\b(?:\d+\s+stops?|connecting\s+flight|one\s+stop)\b/i.test(text);
-    if (!Number.isFinite(price) || price <= 0 || price >= 10000000 || (!accessibleNonstop && !visibleNonstop)) return [];
-    const airline = accessibleLabel.match(/flight with (.*?)\./i)?.[1]?.trim()
-      || text.match(/[AP]M\s*[^\n]*\n\s*([^\n]+)/i)?.[1]?.trim()
-      || '기타';
-    const description = accessibleNonstop ? accessibleLabel
-      : `From ${price} South Korean won round trip total. Nonstop flight with ${airline}. ${text.replace(/\s+/g, ' ').trim()}`;
+    // Never synthesize a 'Nonstop flight' description from arbitrary visible
+    // text: Google's Explore/recommendations cards also contain prices + Nonstop.
+    // Only a real fare's accessible selection link carries a flight itinerary.
+    if (!link || !labelPrice || !isNonstopFlightDescription(accessibleLabel)
+      || !/\bLeaves\s+.+?\s+at\s+\d{1,2}:\d{2}/i.test(accessibleLabel)
+      || !/\band arrives at\b/i.test(accessibleLabel)
+      || !Number.isFinite(price) || price <= 0 || price >= 10000000) return [];
+    const airline = accessibleLabel.match(/flight with (.*?)\./i)?.[1]?.trim() || '기타';
+    const description = accessibleLabel;
     const legs = [...node.querySelectorAll('[data-travelimpactmodelwebsiteurl]')]
       .map((element) => element.getAttribute('data-travelimpactmodelwebsiteurl'))
       .filter(Boolean);
@@ -238,8 +238,8 @@ export function getDepartureSampleSize(mode) {
   return mode === 'quick' ? 2 : TOP_RESULTS;
 }
 
-async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, departureNavigation, mode) {
-  const outboundRows = await readGoogleFlightRows(page);
+async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, departureNavigation, mode, departureCode, destinationCode, trip) {
+  const outboundRows = (await readGoogleFlightRows(page)).filter((row) => isVerifiedFlightLeg({description:row.aria,operation:row.operation},departureCode,destinationCode,trip.departureDate));
   const candidates = [];
   // Quick mode checks the two cheapest outgoing choices; full mode checks five.
   const departureSampleSize = getDepartureSampleSize(mode);
@@ -259,13 +259,13 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
         if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
       }
     }
-    let currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
+    let currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation && isVerifiedFlightLeg({description:row.aria,operation:row.operation},departureCode,destinationCode,trip.departureDate));
     if (!currentOutbound && outboundIndex > 0) {
       // An outbound page may have rerendered while going back. Re-open the exact
       // search once rather than failing the whole itinerary or clicking a return row.
       await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
       if (!await waitForFlightPrices(page, timeoutMs, networkEvents)) break;
-      currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation);
+      currentOutbound = (await readGoogleFlightRows(page)).find((row) => row.operation === outbound.operation && isVerifiedFlightLeg({description:row.aria,operation:row.operation},departureCode,destinationCode,trip.departureDate));
     }
     if (!currentOutbound) {
       const error = new Error('Google Flights 출발 항공편 목록이 변경되어 다시 검색해야 합니다.');
@@ -279,7 +279,7 @@ async function readFlightOptions(page, searchUrl, timeoutMs, networkEvents, depa
     }
     // Returning-flight heading can disappear on API errors; the page content check below handles both states.
     if (!await waitForFlightPrices(page, timeoutMs, networkEvents, 'return-results')) continue;
-    const returnRows = await readGoogleFlightRows(page);
+    const returnRows = (await readGoogleFlightRows(page)).filter((row) => isVerifiedFlightLeg({description:row.aria,operation:row.operation},destinationCode,departureCode,trip.returnDate));
     for (const inbound of returnRows.slice(0, TOP_RESULTS)) {
       if (inbound.price < MIN_PRICE) continue;
       candidates.push({
@@ -367,9 +367,9 @@ export async function searchGoogle({
       const departure = parseDate(trip.departureDate);
       const returnDate = parseDate(trip.returnDate);
       const searchUrl = makeSearchUrl(destinationCode, departure, returnDate, departureCode);
-      const cacheKey = `google-v4-nonstop|${departureCode}|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
+      const cacheKey = `google-v5-validated|${departureCode}|${makeFlightCacheKey(destinationCode, trip.departureDate, trip.returnDate)}`;
       const cached = useCache ? getFreshFlightCacheEntry(cache, cacheKey) : null;
-      let options = cached?.options ? cached.options.filter(isNonstopRoundTrip) : null;
+      let options = cached?.options ? cached.options.filter((option) => isVerifiedFlightResult({...option,departureCode,arrivalAirportCode:destinationCode,departureDate:trip.departureDate,returnDate:trip.returnDate})) : null;
       const cacheHit = Boolean(options);
       onProgress({ current: index + 1, total: trips.length, searchedTrips: searchedTrips + 1, phase, cached: cacheHit, trip, searchUrl });
 
@@ -382,7 +382,7 @@ export async function searchGoogle({
             if (response && response.status() >= 400) throw new Error(`Google Flights 페이지 응답 오류: HTTP ${response.status()}`);
             const timeoutMs = Math.max(1000, Number.isFinite(resultTimeoutMs) ? resultTimeoutMs : 20000);
             const hasResults = await waitForFlightPrices(activePage, timeoutMs, networkEvents);
-            return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents, departureNavigation, mode) : [];
+            return hasResults ? await readFlightOptions(activePage, searchUrl, timeoutMs, networkEvents, departureNavigation, mode, departureCode, destinationCode, trip) : [];
           }, { onRetry: () => console.warn(`${destinationCode} ${trip.departureDate} ~ ${trip.returnDate}: 일시적인 로딩 실패, 1회 재시도`) }), tripTimeoutMs, async (error) => {
             await saveSearchDiagnostics(activePage, destinationCode, trip, error, networkEvents).catch(() => {});
             await activePage.close().catch(() => {});
@@ -399,7 +399,7 @@ export async function searchGoogle({
           continue;
         }
         // Never store a connecting itinerary, including a stale or mislabelled Google row.
-        options = options.filter(isNonstopRoundTrip);
+        options = options.filter((option) => isVerifiedFlightResult({...option,departureCode,arrivalAirportCode:destinationCode,departureDate:trip.departureDate,returnDate:trip.returnDate}));
         cache.entries[cacheKey] = { checkedAt: Date.now(), options };
         cacheDirty = true;
       }
