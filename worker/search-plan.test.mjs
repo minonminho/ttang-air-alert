@@ -27,7 +27,14 @@ test('all scope includes today for the 1am KST schedule and skips already-depart
 });
 
 test('merge sorts prices and marks missing or unfinished cities as partial', () => {
-  const row = (code,price) => ({destinationCode:code,price,departureDate:'2026-11-28',returnDate:'2026-11-30',operationKey:'route',outbound:{description:'Nonstop flight with Jin Air.'},inbound:{description:'Nonstop flight with Jin Air.'}});
+  const row = (code,price) => {
+    const airport = code === 'NRT' ? 'Narita Airport' : 'Hakodate Airport';
+    const leg = (from,to,weekday,day) => ({
+      description:`Nonstop flight with Jin Air. Leaves ${from} at 8:00 AM on ${weekday}, November ${day} and arrives at ${to} at 10:00 AM on ${weekday}, November ${day}. Total duration 2 hr.`,
+    });
+    return {destinationCode:code,departureCode:'ICN',price,departureDate:'2026-11-28',returnDate:'2026-11-30',operationKey:'route',
+      outbound:leg('Incheon International Airport',airport,'Saturday',28),inbound:leg(airport,'Incheon International Airport','Monday',30)};
+  };
   const result = mergeSearchResults([
     {runId:'run',citySummaries:[{destinationCode:'NRT',status:'succeeded'}],results:[row('NRT',300000),row('NRT',300000)]},
     {runId:'run',citySummaries:[],results:[row('HKD',200000)]},
@@ -47,7 +54,8 @@ test('merger retains different departure airports even for identical fare and da
   const makeRow = (origin, routeId, arrivalAirportCode) => ({
     routeId, destinationCode:'NRT', departureCode:origin, arrivalAirportCode,
     price:210000,departureDate:'2026-11-07',returnDate:'2026-11-09',operationKey:'same-id',
-    outbound:{description:'Nonstop flight with ANA.'}, inbound:{description:'Nonstop flight with ANA.'},
+    outbound:{description:`Nonstop flight with ANA. Leaves ${origin === 'GMP' ? 'Gimpo International Airport' : 'Incheon International Airport'} at 8:00 AM on Saturday, November 7 and arrives at ${arrivalAirportCode === 'HND' ? 'Haneda Airport' : 'Narita Airport'} at 10:00 AM on Saturday, November 7. Total duration 2 hr.`},
+    inbound:{description:`Nonstop flight with ANA. Leaves ${arrivalAirportCode === 'HND' ? 'Haneda Airport' : 'Narita Airport'} at 8:00 AM on Monday, November 9 and arrives at ${origin === 'GMP' ? 'Gimpo International Airport' : 'Incheon International Airport'} at 10:00 AM on Monday, November 9. Total duration 2 hr.`},
   });
   const result = mergeSearchResults([
     {runId:'test',citySummaries:[{routeId:'NRT'},{routeId:'GMP-HND'}],results:[
