@@ -38,17 +38,19 @@ test('Google flight rows select verified nonstop fares before cheapest-flight sa
 });
 
 test('snapshot merger excludes any connection, even if a shard returned it', () => {
+  const validOutbound = { description:'From 179000 South Korean won round trip total. Nonstop flight with Jin Air. Leaves Incheon at 2:00 PM on Friday, November 6 and arrives at Okayama at 3:30 PM on Friday, November 6. Total duration 1 hr 30 min.' };
+  const validInbound = { description:'From 179000 South Korean won round trip total. Nonstop flight with Jin Air. Leaves Okayama at 4:20 PM on Monday, November 9 and arrives at Incheon at 6:05 PM on Monday, November 9. Total duration 1 hr 45 min.' };
   const makeResult = (price, outbound, inbound) => ({
-    destinationCode:'OKJ',destination:'오카야마',price,
+    destinationCode:'OKJ',destination:'오카야마',departureCode:'ICN',price,
     operationKey:'flight-' + price,
-    departureDate:'2026-11-07',returnDate:'2026-11-11',
+    departureDate:'2026-11-06',returnDate:'2026-11-09',
     outbound,inbound,
   });
   const results = [
-    makeResult(120000,viaLeg,directLeg),
-    makeResult(140000,directLeg,viaLeg),
-    makeResult(170000,directLeg,directLeg),
-    makeResult(180000,directLeg,undefined),
+    makeResult(120000,viaLeg,validInbound),
+    makeResult(140000,validOutbound,viaLeg),
+    makeResult(170000,validOutbound,validInbound),
+    makeResult(180000,validOutbound,undefined),
   ];
   const snapshot = mergeSearchResults([{
     runId:'test',status:'succeeded',
@@ -59,7 +61,7 @@ test('snapshot merger excludes any connection, even if a shard returned it', () 
   assert.deepEqual(snapshot.results.map((item) => item.price),[170000]);
 });
 
-test('fallback reads visible Google Flights nonstop cards when accessible fare link is missing', async () => {
+test('rejects visible Google Explore prices without an accessible flight-itinerary link', async () => {
   const fakeNode = (text) => ({
     getClientRects: () => [{}],
     getAttribute: () => null,
@@ -75,11 +77,7 @@ test('fallback reads visible Google Flights nonstop cards when accessible fare l
     ]),
   }) };
   const rows = await readGoogleFlightRows(page);
-  assert.deepEqual(rows.map((row) => row.price), [323700, 353700]);
-  assert.ok(rows.every((row) => isNonstopFlightDescription(row.aria)));
-  assert.deepEqual(rows.map((row) => row.nodeIndex), [0, 2]);
-  assert.equal(rows[0].airline, 'Jeju Air');
-  assert.equal(rows[0].ariaLabel, null);
+  assert.deepEqual(rows, []);
 });
 
 test('explicit no-nonstop-results is not a browser timeout', () => {

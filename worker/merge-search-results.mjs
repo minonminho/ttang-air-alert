@@ -2,17 +2,21 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SEARCH_ROUTES } from './routes.mjs';
-import { isNonstopRoundTrip } from './nonstop.mjs';
+import { isVerifiedFlightResult } from './flight-validation.mjs';
 
 export function mergeSearchResults(snapshots, expectedCodes, runId) {
   const errors = snapshots.flatMap((snapshot) => snapshot.errors || []);
   const summaries = snapshots.flatMap((snapshot) => snapshot.citySummaries || []);
   const records = new Map();
+  let rejectedInvalidFlights = 0;
   for (const snapshot of snapshots) {
     if (runId && snapshot.runId !== runId) throw new Error('검색 결과의 실행 ID가 일치하지 않습니다.');
     for (const result of snapshot.results || []) {
       if (!expectedCodes.includes(result.routeId || result.destinationCode)) throw new Error('예상하지 않은 노선 결과입니다.');
-      if (!isNonstopRoundTrip(result)) continue;
+      if (!isVerifiedFlightResult(result)) {
+        rejectedInvalidFlights++;
+        continue;
+      }
       records.set([result.routeId || result.destinationCode, result.departureCode || 'ICN', result.departureDate, result.returnDate, result.operationKey, result.price].join('|'), result);
     }
   }
@@ -22,9 +26,11 @@ export function mergeSearchResults(snapshots, expectedCodes, runId) {
     }
   }
   const results = [...records.values()].sort((a,b) => a.price - b.price);
+  if (rejectedInvalidFlights) console.warn(`[validation] Excluded ${rejectedInvalidFlights} mismatched/unknown flight itineraries before publishing.`);
   const status = errors.length ? (results.length ? 'partial' : 'failed') : 'succeeded';
   return { source:'Google Flights', runId, jobId:`github-${runId || 'local'}`, mode:snapshots[0]?.mode || 'quick', status,
     updatedAt:new Date().toISOString(), destinations:expectedCodes, results, errors, citySummaries:summaries,
+    validation:{ rejectedInvalidFlights, rule:'verified-airports-departure-and-return-dates-v1' },
     progress:{ totalCities:expectedCodes.length, cityIndex:summaries.length, resultCount:results.length } };
 }
 

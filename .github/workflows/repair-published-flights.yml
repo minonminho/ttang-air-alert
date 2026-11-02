@@ -1,0 +1,36 @@
+name: Repair published Google Flights routes
+on:
+  push:
+    paths:
+      - ".github/repair-flights-now.trigger"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: update-deals-all
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify already-published flight airport and date details
+        run: node worker/repair-published-flights.mjs
+      - name: Commit corrected snapshot
+        run: |
+          if git diff --quiet -- dist/flight-results.json; then
+            echo "No invalid flight data to remove."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add dist/flight-results.json
+            git commit -m "fix: drop invalid published flight recommendations"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
