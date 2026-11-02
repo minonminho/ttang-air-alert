@@ -43,22 +43,37 @@ function loadBrowserFunctions() {
   return vm.runInNewContext(script);
 }
 
-const makeFlight = (tripDays, overrides = {}) => ({
-  destination: "도쿄",
-  destinationCode: "NRT",
-  price: 220000,
-  departureCode: "ICN",
-  arrivalAirportCode: "NRT",
-  operationKey: "same-flight",
-  departureDate: "2026-11-01",
-  returnDate: "2026-11-" + String(tripDays).padStart(2, "0"),
-  tripDays,
-  airline: "Sample Air",
-  outbound: { description: "Nonstop flight with Sample Air. Leaves Incheon at 3:15 PM." },
-  inbound: { description: "Nonstop flight with Sample Air. Leaves Narita at 5:15 PM." },
-  url: "https://example.com/flight/" + tripDays,
-  ...overrides,
-});
+const makeFlight = (tripDays, overrides = {}) => {
+  const departureCode = overrides.departureCode || "ICN";
+  const destinationCode = overrides.destinationCode || "NRT";
+  const arrivalAirportCode = overrides.arrivalAirportCode || (destinationCode === "KIX" ? "KIX" : destinationCode === "KIJ" ? "KIJ" : "NRT");
+  const airportName = { ICN:"Incheon International Airport", GMP:"Gimpo International Airport", NRT:"Narita International Airport", HND:"Haneda Airport", KIX:"Kansai International Airport", KIJ:"Niigata Airport" };
+  const leg = (from,to,date) => {
+    const d = new Date(date + "T00:00:00Z");
+    const weekday = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][d.getUTCDay()];
+    const month = ["January","February","March","April","May","June","July","August","September","October","November","December"][d.getUTCMonth()];
+    const dateText = weekday + ", " + month + " " + d.getUTCDate();
+    return {description:"From 220000 South Korean won round trip total. Nonstop flight with Sample Air. Leaves " + airportName[from] + " at 3:15 PM on " + dateText + " and arrives at " + airportName[to] + " at 5:15 PM on " + dateText + ". Total duration 2 hr 0 min. Select flight", operation:from+"-"+to+"-SA-1234"};
+  };
+  const departureDate = "2026-11-01";
+  const returnDate = "2026-11-" + String(tripDays).padStart(2,"0");
+  return {
+    destination: destinationCode === "KIJ" ? "니가타" : destinationCode === "KIX" ? "오사카" : "도쿄",
+    destinationCode,
+    price: 220000,
+    departureCode,
+    arrivalAirportCode,
+    operationKey: "same-flight",
+    departureDate,
+    returnDate,
+    tripDays,
+    airline: "Sample Air",
+    outbound: leg(departureCode,arrivalAirportCode,departureDate),
+    inbound: leg(arrivalAirportCode,departureCode,returnDate),
+    url: "https://example.com/flight/" + tripDays,
+    ...overrides,
+  };
+};
 
 test("live flight filtering supports all, 3, 4, 5 and 6-day itineraries within a grouped fare", () => {
   const helper = loadBrowserFunctions();
@@ -140,13 +155,32 @@ test("unverified and connecting flights are excluded from live groups and deals"
   assert.equal(helper.getDurationFilteredDeals(fares).length, 1);
 });
 
+test("reject irrelevant US recommendation cards, invalid Japanese legs and dates in browser", () => {
+  const helper = loadBrowserFunctions();
+  const valid = makeFlight(4, { destinationCode:"KIJ",arrivalAirportCode:"KIJ",price:261618 });
+  const badRecommendation = makeFlight(4, {
+    destinationCode:"KIJ",arrivalAirportCode:"KIJ",price:261618,
+    outbound:{description:"From 261618 South Korean won round trip total. Nonstop flight with 기타. Wenatchee Portland Jan 14 — Jan 20 Nonstop from ₩261,618"},
+    inbound:{description:"From 261618 South Korean won round trip total. Nonstop flight with 기타. Wenatchee Seattle Jan 2 — Jan 9 Nonstop from ₩261,618"},
+  });
+  const wrongAirport = makeFlight(4, {
+    destinationCode:"KIJ",arrivalAirportCode:"KIJ",price:275000,
+    inbound:{description:valid.inbound.description.replace("Niigata Airport","Seattle Airport")},
+  });
+  const wrongDate = makeFlight(4, { destinationCode:"KIJ",arrivalAirportCode:"KIJ",price:290000,returnDate:"2026-11-05" });
+  assert.equal(helper.groupFlightResults([badRecommendation]).length,0);
+  assert.equal(helper.groupFlightResults([valid, badRecommendation, wrongAirport, wrongDate]).length,1);
+  assert.equal(helper.groupFlightResults([valid, badRecommendation, wrongAirport, wrongDate])[0].price,261618);
+  assert.ok(!appSource.includes("escapeHtml(leg?.description"),"Never expose raw Google Explore labels in UI");
+});
+
 test("published page exposes both duration filters and versioned assets", () => {
   assert.match(htmlSource, /id="liveDurationFilter"/);
   assert.match(htmlSource, /id="dealDurationFilter"/);
   for (const days of ["3", "4", "5", "6"]) {
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
   }
-  assert.match(htmlSource, /app\.js\?v=source-status-20261101/);
+  assert.match(htmlSource, /app\.js\?v=validated-leg-ui-20261102/);
   assert.match(htmlSource, /id="dealCollectionStatus"/);
   assert.match(htmlSource, /styles\.css\?v=gimpo-origin-20261031/);
 });
