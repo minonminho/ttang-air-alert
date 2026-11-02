@@ -197,10 +197,49 @@ function inferAirline(value) {
 }
 
 function isNonstopLiveFlight(result) {
-  // Old published snapshots may still contain connecting flights: verify both legs.
-  const isNonstopLeg = (leg) => /\bnon[\s-]?stop\s+flight\b/i.test(String(leg?.description || ""))
-    && !/\b(?:\d+\s+stops?|connecting\s+flight|one\s+stop)\b/i.test(String(leg?.description || ""));
-  return isNonstopLeg(result?.outbound) && isNonstopLeg(result?.inbound);
+  // Defensive UI validation: Google Flights' unrelated Explore/recommendation
+  // cards may say "Nonstop" but must NEVER appear as selectable Japan flights.
+  // The publisher enforces the same airport/date rule independently.
+  const airports = {
+    ICN: ["incheon"], GMP: ["gimpo", "kimpo"], NRT: ["narita"], HND: ["haneda"],
+    KIX: ["kansai"], NGO: ["chubu", "centrair", "nagoya"], FUK: ["fukuoka"],
+    CTS: ["new chitose", "chitose", "sapporo"], HKD: ["hakodate"],
+    OBO: ["obihiro"], AOJ: ["aomori"], SDJ: ["sendai"], KIJ: ["niigata"],
+    IBR: ["ibaraki"], FSZ: ["shizuoka"], KMQ: ["komatsu"], OKJ: ["okayama"],
+    YGJ: ["yonago"], HIJ: ["hiroshima"], TAK: ["takamatsu"], MYJ: ["matsuyama"],
+    HSG: ["saga"], NGS: ["nagasaki"], OIT: ["oita"], KMJ: ["kumamoto"],
+    KMI: ["miyazaki"], KOJ: ["kagoshima"], OKA: ["naha", "okinawa"], ISG: ["ishigaki"],
+  };
+  const origin = result?.departureCode || "ICN";
+  const target = result?.arrivalAirportCode || result?.destinationCode;
+  const price = Number(result?.price);
+  if (!["ICN", "GMP"].includes(origin) || !airports[target] ||
+      !Number.isFinite(price) || price < 100000 || price >= 10000000) return false;
+
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const monthNames = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+  const legPattern = /\bLeaves\s+(.+?)\s+at\s+\d{1,2}:\d{2}\s*(?:AM|PM)\s+on\s+(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday),\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\s+and arrives at\s+(.+?)\s+at\s+\d{1,2}:\d{2}\s*(?:AM|PM)\s+on\s+/i;
+  const airportMatches = (value, code) => {
+    const name = String(value).toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+    return (airports[code] || []).some((alias) => name.includes(alias));
+  };
+  const verifyLeg = (leg, from, to, expectedDay) => {
+    const description = String(leg?.description || "");
+    if (!/\bnon[\s-]?stop\s+flight\b/i.test(description)
+        || /\b(?:\d+\s+stops?|connecting\s+flight|one\s+stop)\b/i.test(description)) return false;
+    const match = description.match(legPattern);
+    if (!match || !airportMatches(match[1], from) || !airportMatches(match[5], to)) return false;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(expectedDay || ""))) return false;
+    const date = new Date(expectedDay + "T00:00:00Z");
+    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== expectedDay
+        || dayNames[date.getUTCDay()] !== match[2].toLowerCase()
+        || monthNames[date.getUTCMonth()] !== match[3].toLowerCase()
+        || date.getUTCDate() !== Number(match[4])) return false;
+    const identity = String(leg?.operation || "").match(/^([A-Z]{3})-([A-Z]{3})-[A-Z0-9]+-/);
+    return !identity || (identity[1] === from && identity[2] === to);
+  };
+  return verifyLeg(result?.outbound, origin, target, result?.departureDate)
+    && verifyLeg(result?.inbound, target, origin, result?.returnDate);
 }
 
 function groupFlightResults(results = []) {
@@ -268,7 +307,7 @@ function parseFlightLeg(leg) {
 
 function renderFlightLeg(leg, direction) {
   const detail = parseFlightLeg(leg);
-  if (!detail) return `<div class="live-flight-leg"><span class="live-flight-leg-label">${direction}</span><strong class="live-flight-leg-route">${escapeHtml(leg?.description || "운항 정보를 확인할 수 없습니다.")}</strong></div>`;
+  if (!detail) return `<div class="live-flight-leg"><span class="live-flight-leg-label">${direction}</span><strong class="live-flight-leg-route">운항편 정보는 예약 페이지에서 확인해 주세요.</strong></div>`;
   return `<div class="live-flight-leg">
     <span class="live-flight-leg-label">${direction}</span>
     <div class="live-flight-leg-route"><strong>${escapeHtml(detail.origin)}</strong><span class="live-flight-leg-arrow" aria-hidden="true">→</span><strong>${escapeHtml(detail.destination)}</strong></div>
