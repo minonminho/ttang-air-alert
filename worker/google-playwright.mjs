@@ -205,7 +205,9 @@ export async function readGoogleFlightRows(page) {
     // Never synthesize a 'Nonstop flight' description from arbitrary visible
     // text: Google's Explore/recommendations cards also contain prices + Nonstop.
     // Only a real fare's accessible selection link carries a flight itinerary.
-    if (!link || !labelPrice || !isNonstopFlightDescription(accessibleLabel)
+    // evaluateAll runs inside Chromium, not Node: never call an imported
+    // helper here. The strict nonstop check runs after evaluateAll returns.
+    if (!link || !labelPrice
       || !/\bLeaves\s+.+?\s+at\s+\d{1,2}:\d{2}/i.test(accessibleLabel)
       || !/\band arrives at\b/i.test(accessibleLabel)
       || !Number.isFinite(price) || price <= 0 || price >= 10000000) return [];
