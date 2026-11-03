@@ -3,3 +3,5 @@ Run the scheduled flight snapshot workflow immediately.
 2026-10-26 KST: corrected explicit full-refresh trigger.
 
 2026-10-31 KST: one full refresh after official Ttang mobile today-open and 3-month calendar crawler update.
+
+2026-11-03 KST: full 28-route refresh after Google Playwright browser-context ReferenceError fix; four-route live smoke verified.
