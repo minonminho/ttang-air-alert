@@ -658,6 +658,11 @@ function getDurationFilteredDeals(deals) {
   return activeDealDuration === "all" ? nonstopDeals : nonstopDeals.filter((deal) => getDealTripDays(deal) === Number(activeDealDuration));
 }
 
+// Tokyo's map marker is NRT, but Gimpo direct flights arrive at Haneda (HND).
+function getDealCityCode(deal) {
+  return deal?.arrivalCode === "HND" ? "NRT" : deal?.arrivalCode;
+}
+
 function getVisibleDeals() {
   const deals = getDurationFilteredDeals(activeSource === "all" ? todayDeals : todayDeals.filter((deal) => getDealSourceId(deal) === activeSource));
   return activeSource === "all" ? groupDeals(deals) : deals;
@@ -699,7 +704,7 @@ function renderDeals(deals) {
     return;
   }
   list.innerHTML = deals.map((deal) => `
-    <article class="deal-card" data-arrival="${deal.arrivalCode}">
+    <article class="deal-card" data-arrival="${getDealCityCode(deal)}">
       <div class="deal-main"><div class="deal-route"><strong>${deal.departureCode === "GMP" ? "김포" : "인천"} → ${deal.arrival}</strong><span class="deal-code">${deal.departureCode || "ICN"} · ${deal.arrivalCode}</span></div><p class="deal-sub">${renderDealSourceMeta(deal)} ${deal.airline} · ${deal.tripType} · ${formatPeriod(deal)}${deal.minimumPassengers > 1 ? ` · ${deal.minimumPassengers}명부터` : ""}</p>${renderWeekdayStrip(deal)}</div>
       <strong class="deal-price">${formatPrice(deal.price)}<small>부터</small></strong>
       <a class="deal-book" href="${deal.reservationUrl}" target="_blank" rel="noopener">${getPriceOptions(deal).length > 1 ? "최저가 예약" : "예약"} ↗</a>
@@ -1051,7 +1056,7 @@ function showCityDeals(city, { focusMap = true } = {}) {
   selectedCity = city;
   const panel = document.querySelector("#cityDealsPanel");
   const attractionsPanel = document.querySelector("#cityAttractionsPanel");
-  const matches = getVisibleDeals().filter((deal) => deal.arrivalCode === city.code);
+  const matches = getVisibleDeals().filter((deal) => getDealCityCode(deal) === city.code);
   document.querySelectorAll(".deal-card").forEach((card) => card.classList.toggle("highlight", card.dataset.arrival === city.code));
   document.querySelectorAll(".city-choice").forEach((button) => button.classList.toggle("active", button.dataset.code === city.code));
   markerByCode.forEach((marker, code) => marker.getElement()?.classList.toggle("active", code === city.code));
