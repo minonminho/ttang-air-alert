@@ -144,3 +144,33 @@ h1 em { color: #88a451; font-style: normal; }
   .live-flight-filters label { flex: 1 1 calc(50% - 12px); min-width: 0; }
   .live-flight-filters select { width: 100%; min-width: 0; }
 }
+
+/* Shared airport switcher: visible above the map on desktop and mobile. */
+.departure-airport-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  padding: 15px 18px; margin: 18px 0 0;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(35,55,40,.045);
+}
+.departure-airport-intro { display: flex; flex-direction: column; gap: 4px; flex: 0 1 245px; }
+.departure-airport-intro strong { color: var(--navy); font-size: 14px; font-weight: 900; }
+.departure-airport-intro span { color: var(--muted); font-size: 10px; }
+.departure-airport-buttons { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 5px; padding: 4px; min-width: 255px; background: #edf3e9; border-radius: 10px; }
+.departure-airport-buttons button {
+  min-height: 38px; padding: 8px 12px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: #67786a; font-size: 12px; font-weight: 800; font-family: inherit; cursor: pointer;
+  white-space: nowrap; transition: background .16s, border-color .16s;
+}
+.departure-airport-buttons button small { margin-left: 2px; font-size: 9px; opacity: .75; }
+.departure-airport-buttons button:hover, .departure-airport-buttons button.active, .departure-airport-buttons button[aria-pressed="true"] {
+  background: var(--lime); border-color: #b9d476; color: var(--navy);
+}
+.departure-airport-buttons button:focus-visible { outline: 2px solid #536c49; outline-offset: 2px; }
+.departure-airport-note { margin-left: auto; color: #708470; font-size: 10px; }
+@media (max-width: 720px) {
+  .departure-airport-bar { align-items: stretch; gap: 10px; margin-top: 10px; padding: 12px; }
+  .departure-airport-intro { flex-basis: 100%; }
+  .departure-airport-buttons { width: 100%; min-width: 0; }
+  .departure-airport-buttons button { min-height: 42px; font-size: 13px; }
+  .departure-airport-note { width: 100%; margin-left: 0; text-align: center; font-size: 10px; }
+}

@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="./styles.css?v=gimpo-origin-20261031" />
+    <link rel="stylesheet" href="./styles.css?v=airport-filter-20261106" />
     <link rel="stylesheet" href="./live-flights.css?v=attraction-details-1" />
   </head>
   <body>
@@ -21,6 +21,18 @@
     </header>
 
     <main>
+      <div class="departure-airport-bar" aria-label="전체 페이지 출발 공항 선택">
+        <div class="departure-airport-intro">
+          <strong>출발 공항</strong>
+          <span>실시간 항공권 · 오늘의 땡처리 · 지도에 함께 적용</span>
+        </div>
+        <div class="departure-airport-buttons" role="group" aria-label="출발 공항 필터">
+          <button type="button" data-departure-airport="all" aria-pressed="true">전체</button>
+          <button type="button" data-departure-airport="ICN" aria-pressed="false">인천 <small>ICN</small></button>
+          <button type="button" data-departure-airport="GMP" aria-pressed="false">김포 <small>GMP</small></button>
+        </div>
+        <span id="departureAirportNote" class="departure-airport-note" aria-live="polite">인천·김포 출발 전체 표시</span>
+      </div>
       <section class="map-section" id="map">
         <div class="section-intro">
           <div>
@@ -65,6 +77,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./attraction-coordinates.js?v=static-map-attractions-fix-4"></script>
     <script src="./attractions.js?v=static-map-attractions-fix-4"></script>
-    <script src="./app.js?v=validated-leg-ui-20261102"></script>
+    <script src="./app.js?v=airport-filter-20261106"></script>
   </body>
 </html>
