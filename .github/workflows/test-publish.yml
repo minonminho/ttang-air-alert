@@ -6,6 +6,9 @@ on:
       - "worker/**"
       - "crawler/**"
       - "dist/app.js"
+      - "dist/fare-insights.js"
+      - "dist/fare-insights.css"
+      - "dist/price-history.json"
       - "dist/index.html"
       - "dist/styles.css"
       - "package.json"
@@ -28,4 +31,6 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
       - run: node --check dist/app.js
+      - run: node --check dist/fare-insights.js
+      - run: node --check worker/update-price-history.mjs
       - run: node --check crawler/update-snapshot.mjs
