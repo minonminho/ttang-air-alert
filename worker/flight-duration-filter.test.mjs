@@ -178,7 +178,7 @@ test("published page exposes both duration filters and versioned assets", () => 
   assert.match(htmlSource, /id="liveDurationFilter"/);
   assert.match(htmlSource, /id="dealDurationFilter"/);
   for (const days of ["3", "4", "5", "6"]) {
-    assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
+    assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 3);
   }
   assert.match(htmlSource, /app\.js\?v=airport-filter-20261106/);
   assert.match(htmlSource, /id="dealCollectionStatus"/);
@@ -227,8 +227,9 @@ function createAirportFilterHarness() {
   }));
   for (const button of buttons) button.classList.owner = button;
   const saves = [];
-  const calls = {live:0,deals:0,sources:0,map:0};
+  const calls = {live:0,deals:0,sources:0,map:0,insights:0};
   const sandbox = {
+    window:{TTANGFareInsights:{setDepartureAirport:()=>calls.insights++}},
     document:{
       querySelector: (selector) => controls[selector] || null,
       querySelectorAll: (selector) => selector === "[data-departure-airport]" ? buttons : [],
@@ -272,6 +273,7 @@ test("prominent airport buttons select ICN/GMP/all and synchronize both lists an
   assert.equal(ctrl.calls.sources,1);
   assert.equal(ctrl.calls.deals,1);
   assert.equal(ctrl.calls.map,1);
+  assert.equal(ctrl.calls.insights,1);
 
   ctrl.setDepartureAirportFilter("ICN");
   assert.deepEqual(ctrl.buttons.map((button)=>button.attributes["aria-pressed"]),["false","true","false"]);

@@ -142,6 +142,9 @@ jobs:
       - name: Merge results into published snapshot
         if: env.SEARCH_SCOPE != 'test'
         run: node worker/merge-search-results.mjs
+      - name: Persist observed 7/30-day fare history
+        if: env.SEARCH_SCOPE != 'test'
+        run: node worker/update-price-history.mjs
       - name: Install Chromium
         if: env.SEARCH_SCOPE != 'test'
         run: npx playwright install --with-deps chromium
@@ -154,14 +157,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add dist/deals.json dist/flight-results.json
+          git add dist/deals.json dist/flight-results.json dist/price-history.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "chore: publish latest flight snapshots"
           git fetch origin main
           if ! git rebase origin/main; then
             while IFS= read -r file; do
               case "$file" in
-                dist/deals.json|dist/flight-results.json) git checkout --theirs -- "$file"; git add -- "$file" ;;
+                dist/deals.json|dist/flight-results.json|dist/price-history.json) git checkout --theirs -- "$file"; git add -- "$file" ;;
                 *) git rebase --abort; exit 1 ;;
               esac
             done < <(git diff --name-only --diff-filter=U)

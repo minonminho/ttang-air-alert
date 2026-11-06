@@ -418,6 +418,7 @@ function renderAllFlightResults(job) {
   liveFlightUpdatedAt = job.updatedAt || liveFlightUpdatedAt;
   renderedLiveFlightResultCount = liveFlightResults.length;
   renderLiveFlightList();
+  window.TTANGFareInsights?.setFlights(groupFlightResults(liveFlightResults), liveFlightUpdatedAt);
   document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults(job, container));
   refreshSelectedCityLiveFare();
 }
@@ -1208,6 +1209,7 @@ function setDepartureAirportFilter(value, { persist = true } = {}) {
   liveFlightDeparture = airport;
   activeDealDeparture = airport;
   liveFlightPage = 1;
+  window.TTANGFareInsights?.setDepartureAirport(airport);
 
   for (const selector of ["#liveDepartureFilter", "#dealDepartureFilter"]) {
     const input = document.querySelector(selector);
@@ -1247,6 +1249,8 @@ document.querySelectorAll("[data-departure-airport]").forEach((button) =>
   button.addEventListener("click", () => setDepartureAirportFilter(button.dataset.departureAirport)));
 let savedDepartureAirport = "all";
 try { savedDepartureAirport = localStorage.getItem("ttangDepartureAirport") || "all"; } catch {}
+window.TTANGFareInsights?.init();
+window.TTANGFareInsights?.loadHistory(getPublishedDataUrl("price-history.json"));
 renderCityPicker();
 setDepartureAirportFilter(savedDepartureAirport, { persist: false });
 setupMap();
