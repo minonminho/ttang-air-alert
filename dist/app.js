@@ -366,8 +366,10 @@ function updateLiveFlightFilters(groups) {
   const airlineLabel = airlineFilter.closest("label");
   if (airlineLabel?.firstChild?.nodeType === Node.TEXT_NODE) airlineLabel.firstChild.textContent = "항공사 (가는 편·오는 편) ";
   airlineFilter.setAttribute("aria-label", "항공사 필터: 가는 편 또는 오는 편 운항사");
-  const citiesByCode = new Map(groups.map((group) => [group.destinationCode, group.destination]));
-  const airlines = [...new Set(groups.flatMap(getGroupAirlines))].sort((left, right) => left.localeCompare(right, "ko"));
+  // Only offer destination/airline options actually available from the chosen airport.
+  const airportGroups = groups.filter((group) => liveFlightDeparture === "all" || group.departureCode === liveFlightDeparture);
+  const citiesByCode = new Map(airportGroups.map((group) => [group.destinationCode, group.destination]));
+  const airlines = [...new Set(airportGroups.flatMap(getGroupAirlines))].sort((left, right) => left.localeCompare(right, "ko"));
   cityFilter.innerHTML = `<option value="all">전체 도시</option>${[...citiesByCode.entries()].map(([code, name]) => `<option value="${escapeHtml(code)}">${escapeHtml(name)} (${escapeHtml(code)})</option>`).join("")}`;
   airlineFilter.innerHTML = `<option value="all">전체 항공사</option>${airlines.map((airline) => `<option value="${escapeHtml(airline)}">${escapeHtml(airline)}</option>`).join("")}`;
   if (!citiesByCode.has(liveFlightCity)) liveFlightCity = "all";
@@ -692,7 +694,7 @@ function renderDeals(deals) {
   document.querySelector("#mapDealCount").textContent = `오늘의 특가 ${deals.length}개`;
   if (!deals.length) {
     const sourceState = dealSourceStatuses.find((item) => item.id === activeSource);
-    const reason = sourceState?.status === "blocked" ? "판매처에서 자동 수집 접근을 제한하고 있습니다." : sourceState?.status === "unverified" ? "판매처의 항공권은 직항 여부가 확인되지 않아 제외했습니다." : "오늘은 조건에 맞는 특가가 아직 없어요.";
+    const reason = sourceState?.status === "blocked" ? "판매처에서 자동 수집 접근을 제한하고 있습니다." : sourceState?.status === "unverified" ? "판매처의 항공권은 직항 여부가 확인되지 않아 제외했습니다." : activeDealDeparture === "GMP" ? "현재 김포 출발 땡처리 특가가 없습니다. 실시간 항공권에서 김포 → 도쿄·오사카를 확인해 주세요." : "오늘은 조건에 맞는 특가가 아직 없어요.";
     list.innerHTML = `<div class="empty-state">${escapeHtml(reason)}</div>`;
     return;
   }
@@ -1191,15 +1193,57 @@ async function refreshTodayDeals() {
   }
 }
 
+// One shared source-of-truth for the prominent filter and both section selectors.
+function normalizeDepartureAirport(value) {
+  return ["all", "ICN", "GMP"].includes(value) ? value : "all";
+}
+
+function setDepartureAirportFilter(value, { persist = true } = {}) {
+  const airport = normalizeDepartureAirport(value);
+  liveFlightDeparture = airport;
+  activeDealDeparture = airport;
+  liveFlightPage = 1;
+
+  for (const selector of ["#liveDepartureFilter", "#dealDepartureFilter"]) {
+    const input = document.querySelector(selector);
+    if (input) input.value = airport;
+  }
+  document.querySelectorAll("[data-departure-airport]").forEach((button) => {
+    const selected = button.dataset.departureAirport === airport;
+    button.setAttribute("aria-pressed", String(selected));
+    button.classList.toggle("active", selected);
+  });
+  const note = document.querySelector("#departureAirportNote");
+  if (note) note.textContent = airport === "GMP"
+    ? "김포 출발 · 도쿄(하네다) / 오사카 노선 검색"
+    : airport === "ICN"
+      ? "인천 출발 항공권만 표시"
+      : "인천·김포 출발 전체 표시";
+
+  if (persist) {
+    try { localStorage.setItem("ttangDepartureAirport", airport); } catch {}
+  }
+  renderLiveFlightList();
+  document.querySelectorAll("#allCityFlightResults").forEach((container) =>
+    renderAllAutomationResults({ results: liveFlightResults }, container));
+  renderSourceFilters();
+  renderDeals(getVisibleDeals());
+  if (selectedCity) showCityDeals(selectedCity, { focusMap: false });
+}
+
 document.querySelector("#resetMap").addEventListener("click", resetMapView);
-document.querySelector("#liveDepartureFilter").addEventListener("change", (event) => { liveFlightDeparture = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); refreshSelectedCityLiveFare(); });
-document.querySelector("#dealDepartureFilter").addEventListener("change", (event) => { activeDealDeparture = event.target.value; renderSourceFilters(); renderDeals(getVisibleDeals()); if (selectedCity) showCityDeals(selectedCity); });
+document.querySelector("#liveDepartureFilter").addEventListener("change", (event) => setDepartureAirportFilter(event.target.value));
+document.querySelector("#dealDepartureFilter").addEventListener("change", (event) => setDepartureAirportFilter(event.target.value));
 document.querySelector("#liveCityFilter").addEventListener("change", (event) => { liveFlightCity = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveAirlineFilter").addEventListener("change", (event) => { liveFlightAirline = event.target.value; liveFlightPage = 1; renderLiveFlightList(); });
 document.querySelector("#liveDurationFilter").addEventListener("change", (event) => { liveFlightDuration = event.target.value; liveFlightPage = 1; renderLiveFlightList(); document.querySelectorAll("#allCityFlightResults").forEach((container) => renderAllAutomationResults({ results: liveFlightResults }, container)); refreshSelectedCityLiveFare(); });
 document.querySelector("#dealDurationFilter").addEventListener("change", (event) => { activeDealDuration = event.target.value; renderSourceFilters(); renderDeals(getVisibleDeals()); if (selectedCity) showCityDeals(selectedCity); });
+document.querySelectorAll("[data-departure-airport]").forEach((button) =>
+  button.addEventListener("click", () => setDepartureAirportFilter(button.dataset.departureAirport)));
+let savedDepartureAirport = "all";
+try { savedDepartureAirport = localStorage.getItem("ttangDepartureAirport") || "all"; } catch {}
 renderCityPicker();
-renderSourceFilters();
+setDepartureAirportFilter(savedDepartureAirport, { persist: false });
 setupMap();
 loadDeals();
 resumeAllCityFlightSearch();
