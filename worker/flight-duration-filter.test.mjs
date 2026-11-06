@@ -38,7 +38,7 @@ function loadBrowserFunctions() {
     extract("parseDealDate", "formatDealDate"),
     extract("getDealTripDays", "getVisibleDeals"),
     extract("renderCityLiveFare", "renderCityAttractions"),
-    '({ groupFlightResults, filterFlightSchedulesByDuration, getFilteredLiveFlightGroups, getDealTripDays, getDurationFilteredDeals, renderCityLiveFare, setFlightDuration(value) { liveFlightDuration = value; }, setLiveDeparture(value) { liveFlightDeparture = value; }, setDealDeparture(value) { activeDealDeparture = value; }, setDealDuration(value) { activeDealDuration = value; }, setFlightResults(value) { liveFlightResults = value; } })',
+    '({ groupFlightResults, filterFlightSchedulesByDuration, getFilteredLiveFlightGroups, getDealTripDays, getDurationFilteredDeals, getDealCityCode, renderCityLiveFare, setFlightDuration(value) { liveFlightDuration = value; }, setLiveDeparture(value) { liveFlightDeparture = value; }, setDealDeparture(value) { activeDealDeparture = value; }, setDealDuration(value) { activeDealDuration = value; }, setFlightResults(value) { liveFlightResults = value; } })',
   ].join("\n");
   return vm.runInNewContext(script);
 }
@@ -180,9 +180,9 @@ test("published page exposes both duration filters and versioned assets", () => 
   for (const days of ["3", "4", "5", "6"]) {
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 2);
   }
-  assert.match(htmlSource, /app\.js\?v=validated-leg-ui-20261102/);
+  assert.match(htmlSource, /app\.js\?v=airport-filter-20261106/);
   assert.match(htmlSource, /id="dealCollectionStatus"/);
-  assert.match(htmlSource, /styles\.css\?v=gimpo-origin-20261031/);
+  assert.match(htmlSource, /styles\.css\?v=airport-filter-20261106/);
 });
 
 test('origin selection separates ICN and GMP flights and preserves Tokyo city mapping', () => {
@@ -206,4 +206,87 @@ test('origin selection separates ICN and GMP flights and preserves Tokyo city ma
   assert.equal(helper.getDurationFilteredDeals(offers)[0].departureCode,'GMP');
   assert.match(htmlSource,/id="liveDepartureFilter"/);
   assert.match(htmlSource,/id="dealDepartureFilter"/);
+});
+
+
+function createAirportFilterHarness() {
+  const start = appSource.indexOf("function normalizeDepartureAirport(");
+  const end = appSource.indexOf('\ndocument.querySelector("#resetMap")',start);
+  assert.ok(start >= 0 && end > start, "Shared departure airport controller must exist");
+  const controls = {
+    "#liveDepartureFilter": {value:"all"},
+    "#dealDepartureFilter": {value:"all"},
+    "#departureAirportNote": {textContent:""},
+  };
+  const buttons = ["all","ICN","GMP"].map((airport) => ({
+    dataset:{departureAirport:airport},
+    attributes:{},
+    active:false,
+    setAttribute(key,value) {this.attributes[key] = value;},
+    classList: {toggle(name,active) { if (name === "active") this.owner.active = active; }, owner:null},
+  }));
+  for (const button of buttons) button.classList.owner = button;
+  const saves = [];
+  const calls = {live:0,deals:0,sources:0,map:0};
+  const sandbox = {
+    document:{
+      querySelector: (selector) => controls[selector] || null,
+      querySelectorAll: (selector) => selector === "[data-departure-airport]" ? buttons : [],
+    },
+    localStorage:{setItem:(key,value)=>saves.push([key,value])},
+    renderLiveFlightList:()=>calls.live++,
+    renderAllAutomationResults:()=>{},
+    renderSourceFilters:()=>calls.sources++,
+    renderDeals:()=>calls.deals++,
+    getVisibleDeals:()=>[],
+    showCityDeals:()=>calls.map++,
+  };
+  const controller = appSource.slice(start,end);
+  const api = vm.runInNewContext([
+    'let liveFlightDeparture = "all"; let activeDealDeparture = "all";',
+    'let liveFlightPage = 5; let liveFlightResults = [];',
+    'let selectedCity = {code:"NRT"};',
+    controller,
+    '({ setDepartureAirportFilter, normalizeDepartureAirport, getState: () => ({ liveFlightDeparture, activeDealDeparture, liveFlightPage }) })',
+  ].join("\n"),sandbox);
+  return {...api,buttons,controls,saves,calls};
+}
+
+test("prominent airport buttons select ICN/GMP/all and synchronize both lists and map", () => {
+  const ctrl = createAirportFilterHarness();
+  assert.match(htmlSource,/class="departure-airport-bar"/);
+  for (const airport of ["all","ICN","GMP"]) {
+    assert.match(htmlSource,new RegExp('data-departure-airport="' + airport + '"'));
+  }
+  assert.match(htmlSource,/id="departureAirportNote"/);
+  ctrl.setDepartureAirportFilter("GMP");
+  assert.equal(ctrl.getState().liveFlightDeparture,"GMP");
+  assert.equal(ctrl.getState().activeDealDeparture,"GMP");
+  assert.equal(ctrl.getState().liveFlightPage,1);
+  assert.equal(ctrl.controls["#liveDepartureFilter"].value,"GMP");
+  assert.equal(ctrl.controls["#dealDepartureFilter"].value,"GMP");
+  assert.deepEqual(ctrl.buttons.map((button)=>button.active),[false,false,true]);
+  assert.match(ctrl.controls["#departureAirportNote"].textContent,/김포/);
+  assert.deepEqual(ctrl.saves[0],["ttangDepartureAirport","GMP"]);
+  assert.equal(ctrl.calls.live,1);
+  assert.equal(ctrl.calls.sources,1);
+  assert.equal(ctrl.calls.deals,1);
+  assert.equal(ctrl.calls.map,1);
+
+  ctrl.setDepartureAirportFilter("ICN");
+  assert.deepEqual(ctrl.buttons.map((button)=>button.attributes["aria-pressed"]),["false","true","false"]);
+  assert.equal(ctrl.controls["#dealDepartureFilter"].value,"ICN");
+  ctrl.setDepartureAirportFilter("anything",{persist:false});
+  assert.equal(ctrl.getState().liveFlightDeparture,"all");
+  assert.equal(ctrl.getState().activeDealDeparture,"all");
+  assert.equal(ctrl.saves.length,2,"initial restore must not rewrite saved choice");
+  assert.match(appSource,/localStorage\.getItem\("ttangDepartureAirport"\)/);
+  assert.match(appSource,/setDepartureAirportFilter\(event\.target\.value\)/);
+});
+
+test("Haneda airport offers appear under Tokyo city instead of vanishing from map", () => {
+  const helper = loadBrowserFunctions();
+  assert.equal(helper.getDealCityCode({arrivalCode:"HND"}),"NRT");
+  assert.equal(helper.getDealCityCode({arrivalCode:"KIX"}),"KIX");
+  assert.match(appSource,/getVisibleDeals\(\)\.filter\(\(deal\) => getDealCityCode\(deal\) === city\.code\)/);
 });
