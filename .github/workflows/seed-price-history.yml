@@ -1,0 +1,40 @@
+name: Seed verified flight price history
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/price-history-now.trigger"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: price-history-write
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify and aggregate published nonstop flights
+        run: node worker/update-price-history.mjs
+      - name: Commit observed price history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/price-history.json
+          if git diff --cached --quiet; then
+            echo "No new observed prices to record."
+            exit 0
+          fi
+          git commit -m "chore: seed verified fare price history"
+          git pull --rebase origin main
+          git push origin HEAD:main
