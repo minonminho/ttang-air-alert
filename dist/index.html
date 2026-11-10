@@ -12,8 +12,8 @@
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="./styles.css?v=airport-filter-20261106" />
-    <link rel="stylesheet" href="./live-flights.css?v=attraction-details-1" />
-    <link rel="stylesheet" href="./fare-insights.css?v=fare-insights-20261106" />
+    <link rel="stylesheet" href="./live-flights.css?v=compact-cards-20261110" />
+    <link rel="stylesheet" href="./fare-insights.css?v=searchable-calendar-20261110" />
   </head>
   <body>
     <header class="site-header">
@@ -81,7 +81,7 @@
               </div>
             </div>
             <div id="fareCalendar" class="fare-calendar-grid" aria-live="polite"></div>
-            <div class="fare-calendar-legend"><span><i></i> 이번 달의 낮은 가격대</span><span class="not-observed"><i></i> 조회 정보 없음</span></div>
+            <div class="fare-calendar-legend"><span><i></i> 이번 달의 낮은 가격대</span><span class="not-observed"><i></i> 미조회 · 눌러서 직접 검색</span></div>
             <p id="fareCalendarCoverage" class="fare-calendar-coverage">항공권 데이터를 읽는 중입니다.</p>
             <div id="fareCalendarSelection" class="fare-calendar-selection" aria-live="polite"></div>
           </article>
@@ -121,7 +121,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="./attraction-coordinates.js?v=static-map-attractions-fix-4"></script>
     <script src="./attractions.js?v=static-map-attractions-fix-4"></script>
-    <script src="./fare-insights.js?v=fare-insights-20261106"></script>
-    <script src="./app.js?v=airport-filter-20261106"></script>
+    <script src="./fare-insights.js?v=searchable-calendar-20261110"></script>
+    <script src="./app.js?v=compact-cards-20261110"></script>
   </body>
 </html>
