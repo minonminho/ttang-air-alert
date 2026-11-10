@@ -133,3 +133,66 @@ test("site loads both features and keeps shared departure airport",()=>{
   assert.match(app,/TTANGFareInsights\?\.setDepartureAirport/);
   assert.match(app,/loadHistory\(getPublishedDataUrl\("price-history\.json"\)\)/);
 });
+
+
+test("unobserved calendar days produce real exact-route external search links, never guessed prices", () => {
+  const window={};
+  vm.runInNewContext(fs.readFileSync(new URL("../dist/fare-insights.js",import.meta.url),"utf8"),{window,Intl,Date});
+  const u=window.TTANGFareInsights.testUtils;
+  const groups=[
+    {destination:"도쿄",destinationCode:"NRT",departureCode:"ICN",arrivalAirportCode:"NRT",price:234000,schedules:[]},
+    {destination:"도쿄",destinationCode:"NRT",departureCode:"GMP",arrivalAirportCode:"HND",price:263000,schedules:[]},
+    {destination:"오사카",destinationCode:"KIX",departureCode:"GMP",arrivalAirportCode:"KIX",price:210000,schedules:[]},
+  ];
+  const date="2026-11-17";
+  const kimpo=u.directCalendarSearches(groups,{date,origin:"GMP",city:"NRT",duration:"4"});
+  assert.equal(kimpo.length,1);
+  assert.equal(kimpo[0].from,"GMP");
+  assert.equal(kimpo[0].to,"HND");
+  const url=new URL(kimpo[0].url);
+  assert.match(url.searchParams.get("q"),/GMP to HND departing 2026-11-17 returning 2026-11-20/);
+  assert.match(url.searchParams.get("q"),/Nonstop round trip/);
+  assert.equal(url.searchParams.get("curr"),"KRW");
+  assert.equal(u.directCalendarSearches(groups,{date,origin:"all",city:"NRT",duration:"all"}).length,8);
+  assert.equal(u.directCalendarSearches(groups,{date,origin:"all",city:"all",duration:"all"}).length,0);
+  assert.equal(u.directCalendarSearches(groups,{date:"invalid",origin:"ICN",city:"NRT",duration:"3"}).length,0);
+  assert.equal(u.directCalendarSearches(groups,{date,origin:"GMP",city:"FUK",duration:"4"}).length,0);
+});
+
+test("future dates without a collected fare stay clickable and show an honest direct search", () => {
+  const elements=new Map();
+  const dom=(id)=>{
+    if (!elements.has(id)) elements.set(id,{
+      value:"all",innerHTML:"",textContent:"",disabled:false,
+      handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},
+    });
+    return elements.get(id);
+  };
+  const document={
+    getElementById:dom,
+    querySelectorAll:()=>[],
+  };
+  const window={};
+  vm.runInNewContext(fs.readFileSync(new URL("../dist/fare-insights.js",import.meta.url),"utf8"),{
+    window,document,Intl,Date,console,fetch:()=>{},
+  });
+  window.TTANGFareInsights.init();
+  const today=window.TTANGFareInsights.testUtils.dayInSeoul();
+  assert.match(dom("fareCalendar").innerHTML,/class="fare-calendar-day is-empty is-searchable/);
+  assert.match(dom("fareCalendar").innerHTML,new RegExp('data-fare-date="'+today+'"'));
+  assert.doesNotMatch(dom("fareCalendar").innerHTML,/data-fare-date="[^"]+"[^>]*aria-label="[^"]+₩/,"No unverified price can be invented");
+  window.TTANGFareInsights.setFlights([{
+    destination:"도쿄",destinationCode:"NRT",departureCode:"GMP",arrivalAirportCode:"HND",
+    price:230000,schedules:[],
+  }],new Date().toISOString());
+  dom("insightsCityFilter").handlers.change({target:{value:"NRT"}});
+  window.TTANGFareInsights.setDepartureAirport("GMP");
+  dom("fareCalendar").handlers.click({target:{closest:()=>({dataset:{fareDate:today}})}});
+  assert.match(dom("fareCalendarSelection").innerHTML,/가격 미조회/);
+  assert.match(dom("fareCalendarSelection").innerHTML,/HND/);
+  assert.match(dom("fareCalendarSelection").innerHTML,/https:\/\/www\.google\.com\/travel\/flights/);
+  assert.doesNotMatch(dom("fareCalendarSelection").innerHTML,/확인된 검색 최저가/);
+  const html=fs.readFileSync(new URL("../dist/index.html",import.meta.url),"utf8");
+  assert.match(html,/fare-insights\.js\?v=searchable-calendar-20261110/);
+  assert.match(html,/live-flights\.css\?v=compact-cards-20261110/);
+});
