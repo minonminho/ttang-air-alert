@@ -130,50 +130,81 @@
         : "확인된 항공권 검색 결과가 없습니다";
     }
   }
-  function renderCalendar() {
-    const container = $("fareCalendar");
-    if (!container || !state.today) return;
-    const d = state.month;
-    const first = new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1));
-    const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
-    const rows = calendarData();
-    const observations = [...rows.values()].filter((row)=>row.date.startsWith(monthKey(d))).map((r)=>r.price);
-    const monthLow = observations.length ? Math.min(...observations) : null;
-    $("fareCalendarMonth").textContent = `${d.getUTCFullYear()}년 ${d.getUTCMonth()+1}월`;
-    const minMonth = monthKey(monthStart(state.today));
-    const maxMonth = monthKey(monthStart(state.end));
-    $("fareCalendarPrev").disabled = monthKey(d) <= minMonth;
-    $("fareCalendarNext").disabled = monthKey(d) >= maxMonth;
-    const cells = DAYS.map((day)=>`<span class="fare-calendar-weekday">${day}</span>`);
-    for (let pad=0;pad<first.getUTCDay();pad++) cells.push('<span class="fare-calendar-blank" aria-hidden="true"></span>');
-    for (let n=1;n<=daysInMonth;n++) {
-      const value = dayKey(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),n)));
-      const fare = rows.get(value);
-      const inWindow = value >= state.today && value <= state.end;
-      if (!inWindow) {
-        cells.push(`<span class="fare-calendar-day is-outside"><span>${n}</span></span>`);
-      } else if (!fare) {
-        cells.push(`<span class="fare-calendar-day is-empty" title="조회된 왕복 직항 가격 없음"><span>${n}</span><small>–</small></span>`);
-      } else {
-        const cheap = monthLow !== null && fare.price <= monthLow*1.12;
-        const selected = state.chosenDate === value;
-        cells.push(`<button type="button" class="fare-calendar-day has-fare${cheap?" is-low":""}${selected?" selected":""}" data-fare-date="${value}" aria-pressed="${selected}" aria-label="${value} ${won(fare.price)}부터 왕복, ${fare.tripDays}일 일정"><span>${n}</span><strong>${shortWon(fare.price)}</strong></button>`);
-      }
-    }
-    container.innerHTML = cells.join("");
-    $("fareCalendarCoverage").textContent =
-      `향후 3개월 중 ${rows.size}일에 조회된 직항 왕복 최저가 · – 는 미조회/미확인, 매진을 뜻하지 않습니다.`;
-    const current = rows.get(state.chosenDate);
-    const detail = $("fareCalendarSelection");
-    if (current) {
-      const validLink = typeof current.url === "string" && /^https:\/\//.test(current.url);
-      detail.innerHTML = `<div class="fare-selection-copy"><span>선택한 출발일</span><strong>${escape(formatDay(current.date))} → ${escape(formatDay(current.returnDate))} · ${current.tripDays}일</strong><small>${escape(current.departureCode==="GMP"?"김포":"인천")} → ${escape(current.city)} · ${escape(current.arrivalAirportCode)} · 확인된 검색 최저가 ${won(current.price)}</small></div>`
-        +(validLink?`<a class="fare-selection-action" href="${escape(current.url)}" target="_blank" rel="noopener noreferrer">항공권 확인 ↗</a>`:"");
-    } else {
-      detail.innerHTML = '<p>가격이 표시된 날짜를 선택하면 실제 여행 일정과 검색 링크를 확인할 수 있습니다.</p>';
+  function directCalendarSearches(groups, { date, city = "all", origin = "all", duration = "all" } = {}) {
+  if (city === "all" || !parseDay(date)) return [];
+  const lengths = duration === "all" ? [3, 4, 5, 6] : [Number(duration)];
+  const options = new Map();
+  for (const group of groups || []) {
+    if (group.destinationCode !== city || (origin !== "all" && group.departureCode !== origin)) continue;
+    const from = group.departureCode;
+    const to = group.arrivalAirportCode || group.destinationCode;
+    if (!["ICN", "GMP"].includes(from) || !/^[A-Z]{3}$/.test(String(to))) continue;
+    // The existing crawler searches only these two direct Gimpo routes.
+    if (from === "GMP" && !["HND", "KIX"].includes(to)) continue;
+    for (const days of lengths) {
+      if (![3,4,5,6].includes(days)) continue;
+      const returning = dayKey(addDays(parseDay(date), days - 1));
+      const query = `Nonstop round trip flights from ${from} to ${to} departing ${date} returning ${returning} for 1 adult economy`;
+      const url = `https://www.google.com/travel/flights?q=${encodeURIComponent(query)}&hl=en&curr=KRW`;
+      options.set(`${from}|${to}|${days}`, { from, to, days, returning, url });
     }
   }
-  function trendChart(rows) {
+  return [...options.values()];
+}
+  function renderCalendar() {
+  const container = $("fareCalendar");
+  if (!container || !state.today) return;
+  const d = state.month;
+  const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  const rows = calendarData();
+  const observations = [...rows.values()].filter((row) => row.date.startsWith(monthKey(d))).map((row) => row.price);
+  const monthLow = observations.length ? Math.min(...observations) : null;
+  $("fareCalendarMonth").textContent = `${d.getUTCFullYear()}년 ${d.getUTCMonth()+1}월`;
+  const minMonth = monthKey(monthStart(state.today));
+  const maxMonth = monthKey(monthStart(state.end));
+  $("fareCalendarPrev").disabled = monthKey(d) <= minMonth;
+  $("fareCalendarNext").disabled = monthKey(d) >= maxMonth;
+  const cells = DAYS.map((day) => `<span class="fare-calendar-weekday">${day}</span>`);
+  for (let pad = 0; pad < first.getUTCDay(); pad++) cells.push('<span class="fare-calendar-blank" aria-hidden="true"></span>');
+  for (let n = 1; n <= daysInMonth; n++) {
+    const value = dayKey(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), n)));
+    const fare = rows.get(value);
+    const selected = state.chosenDate === value;
+    if (value < state.today || value > state.end) {
+      cells.push(`<span class="fare-calendar-day is-outside"><span>${n}</span></span>`);
+    } else if (!fare) {
+      // An unobserved date is not sold out: enable manual verification instead.
+      cells.push(`<button type="button" class="fare-calendar-day is-empty is-searchable${selected?" selected":""}" data-fare-date="${value}" aria-pressed="${selected}" aria-label="${value} 수집된 가격 없음, 출발일 선택 후 직접 검색"><span>${n}</span><small>검색</small></button>`);
+    } else {
+      const cheap = monthLow !== null && fare.price <= monthLow * 1.12;
+      cells.push(`<button type="button" class="fare-calendar-day has-fare${cheap?" is-low":""}${selected?" selected":""}" data-fare-date="${value}" aria-pressed="${selected}" aria-label="${value} ${won(fare.price)}부터 왕복, ${fare.tripDays}일 일정"><span>${n}</span><strong>${shortWon(fare.price)}</strong></button>`);
+    }
+  }
+  container.innerHTML = cells.join("");
+  $("fareCalendarCoverage").textContent = `향후 3개월 중 ${rows.size}일의 왕복 직항 가격 확인 · 나머지 날짜는 직접 검색 가능 (가격 미조회 ≠ 매진). 주말 포함 3~6일 대표 일정 위주로 수집합니다.`;
+  const current = rows.get(state.chosenDate);
+  const detail = $("fareCalendarSelection");
+  if (current) {
+    const validLink = typeof current.url === "string" && /^https:\/\//.test(current.url);
+    detail.innerHTML = `<div class="fare-selection-copy"><span>가격이 확인된 출발일</span><strong>${escape(formatDay(current.date))} → ${escape(formatDay(current.returnDate))} · ${current.tripDays}일</strong><small>${escape(current.departureCode==="GMP"?"김포":"인천")} → ${escape(current.city)} · ${escape(current.arrivalAirportCode)} · 확인된 검색 최저가 ${won(current.price)}</small></div>`
+      + (validLink ? `<a class="fare-selection-action" href="${escape(current.url)}" target="_blank" rel="noopener noreferrer">항공권 확인 ↗</a>` : "");
+  } else if (state.chosenDate && state.chosenDate >= state.today && state.chosenDate <= state.end) {
+    const searches = directCalendarSearches(state.groups, {
+      date:state.chosenDate, city:state.city, origin:state.origin, duration:state.duration,
+    });
+    const linkList = searches.map((item) => `<a class="fare-calendar-search-link" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer">${item.from==="GMP"?"김포":"인천"} → ${escape(item.to)} · ${item.days}일 ↗</a>`).join("");
+    const message = state.city === "all"
+      ? "위의 목적지를 먼저 선택하면 이 날짜를 Google Flights에서 직접 조회할 수 있습니다."
+      : searches.length
+        ? "자동 수집에서 확인하지 않은 날짜입니다. 아래 링크로 실제 운임과 직항 여부를 확인하세요."
+        : "선택한 조건에서 검색 경로를 확인할 수 없습니다. 목적지나 출발 공항을 변경해 주세요.";
+    detail.innerHTML = `<div class="fare-selection-copy"><span>가격 미조회 · 직접 검색</span><strong>${escape(formatDay(state.chosenDate))} 출발</strong><small>${escape(message)}</small></div>${linkList?`<div class="fare-calendar-search-links">${linkList}</div>`:""}`;
+  } else {
+    detail.innerHTML = '<p>가격이 있는 날짜는 최저가를, 가격이 없는 날짜는 직접 검색 링크를 확인할 수 있습니다. 목적지를 선택하면 더 정확합니다.</p>';
+  }
+}
+    function trendChart(rows) {
     if (!rows.length) return '<p class="fare-insights-empty">아직 저장된 날짜별 가격 기록이 없습니다.</p>';
     const width=610,height=205,left=65,right=20,top=20,bottom=37;
     const maxX=width-right,maxY=height-bottom;
@@ -290,6 +321,6 @@
       state.chosenDate=null;
       render();
     },
-    testUtils:{dayInSeoul,threeMonthEnd,fareCalendarRows,historicalSeries,calculateDealScore},
+    testUtils:{dayInSeoul,threeMonthEnd,fareCalendarRows,historicalSeries,calculateDealScore,directCalendarSearches},
   };
 })();

@@ -111,3 +111,45 @@ body { font-family: "Pretendard Variable", Pretendard, sans-serif; }
   .live-flight-leg-times { font-size: 18px; }
   .live-flight-schedule { flex: 1 1 165px; min-width: min(165px,100%); }
 }
+
+/* Compact flight cards: retain route, both legs and full booking access. */
+.live-flight-list { gap: 10px; }
+.live-flight-card { gap: 11px; padding: 14px 16px; border-radius: 13px; }
+.live-flight-card-header { gap: 12px; }
+.live-flight-city-block { gap: 7px; }
+.live-flight-city-block strong { font-size: 19px; }
+.live-flight-city-block span { font-size: 10px; padding: 3px 6px; }
+.live-flight-price strong { font-size: 20px; }
+.live-flight-price small { font-size: 10px; }
+.live-flight-legs { gap: 10px; }
+.live-flight-leg { padding: 10px 12px; border-radius: 9px; }
+.live-flight-leg-label { margin-bottom: 5px; font-size: 10px; }
+.live-flight-leg-route { gap: 6px; font-size: 13px; }
+.live-flight-leg-times { margin-top: 4px; gap: 6px; font-size: 17px; }
+.live-flight-leg-meta { gap: 4px; margin-top: 6px; }
+.live-flight-leg-meta span { font-size: 10px; padding: 3px 5px; }
+.live-flight-card-footer { padding-top: 10px; }
+.live-flight-schedules { gap: 6px; margin-top: 7px; }
+.live-flight-schedule { min-width: 161px; padding: 7px 9px; }
+.live-flight-schedule strong { font-size: 11px; }
+.live-flight-schedule > span:nth-child(2) { font-size: 10px; }
+.live-flight-schedules-heading { font-size: 11px; }
+.live-flight-schedules-more { margin-top: 8px; }
+.live-flight-schedules-more summary {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer; padding: 7px 9px;
+  color: #55704f; background: #edf5e7; border: 1px solid #dcebd3;
+  border-radius: 7px; font-size: 11px; font-weight: 800;
+}
+.live-flight-schedules-more summary:hover { background: #dcf5c8; }
+.live-flight-schedules-more summary:focus-visible { outline: 2px solid #7ca26c; outline-offset: 2px; }
+.live-flight-schedules-more[open] summary { background: #e5f3d7; }
+@media (max-width: 640px) {
+  .live-flight-card { gap: 9px; padding: 12px 13px; }
+  .live-flight-city-block { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .live-flight-city-block strong { font-size: 17px; }
+  .live-flight-price strong { font-size: 18px; }
+  .live-flight-legs { gap: 6px; }
+  .live-flight-leg { padding: 9px 10px; }
+  .live-flight-leg-times { font-size: 16px; }
+  .live-flight-schedule { min-width: min(151px, 100%); padding: 7px 8px; }
+}

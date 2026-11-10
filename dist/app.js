@@ -324,11 +324,15 @@ function formatLiveRefreshTime(value) {
 }
 
 function renderLiveFlightCard(group) {
-  const schedules = group.schedules.map((schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener"><strong>${schedule.tripDays}일 일정</strong><span>${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}</span><span class="live-flight-schedule-arrow" aria-hidden="true">↗</span></a>`).join("");
+  // Keep the first four schedules visible; all remaining booking links stay accessible.
+  const scheduleLink = (schedule) => `<a class="live-flight-schedule" href="${escapeHtml(schedule.url)}" target="_blank" rel="noopener noreferrer"><strong>${schedule.tripDays}일 일정</strong><span>${formatDealDate(schedule.departureDate)} → ${formatDealDate(schedule.returnDate)}</span><span class="live-flight-schedule-arrow" aria-hidden="true">↗</span></a>`;
+  const primary = group.schedules.slice(0, 4).map(scheduleLink).join("");
+  const extra = group.schedules.slice(4);
+  const overflow = extra.length ? `<details class="live-flight-schedules-more"><summary>${extra.length}개 일정 더보기</summary><div class="live-flight-schedules">${extra.map(scheduleLink).join("")}</div></details>` : "";
   return `<article class="live-flight-card">
     <header class="live-flight-card-header"><div class="live-flight-city-block"><strong>${escapeHtml(group.destination)}</strong><span>${escapeHtml(group.departureCode === "GMP" ? "김포 (GMP)" : "인천 (ICN)")} → ${escapeHtml(group.arrivalAirportCode || group.destinationCode)}</span></div><div class="live-flight-price"><small>왕복 최저가</small><strong>${formatPrice(group.price)}</strong></div></header>
     <div class="live-flight-legs">${renderFlightLeg(group.outbound, "가는 편")}<span class="live-flight-leg-divider" aria-hidden="true"></span>${renderFlightLeg(group.inbound, "오는 편")}</div>
-    <footer class="live-flight-card-footer"><div class="live-flight-schedules-heading"><strong>가능한 일정</strong><span>${group.schedules.length}개</span></div><div class="live-flight-schedules">${schedules}</div></footer>
+    <footer class="live-flight-card-footer"><div class="live-flight-schedules-heading"><strong>가능한 일정</strong><span>${group.schedules.length}개</span></div><div class="live-flight-schedules">${primary}</div>${overflow}</footer>
   </article>`;
 }
 
