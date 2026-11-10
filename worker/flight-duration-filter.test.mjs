@@ -180,7 +180,7 @@ test("published page exposes both duration filters and versioned assets", () => 
   for (const days of ["3", "4", "5", "6"]) {
     assert.equal((htmlSource.match(new RegExp('<option value="' + days + '">', 'g')) || []).length, 3);
   }
-  assert.match(htmlSource, /app\.js\?v=airport-filter-20261106/);
+  assert.match(htmlSource, /app\.js\?v=compact-cards-20261110/);
   assert.match(htmlSource, /id="dealCollectionStatus"/);
   assert.match(htmlSource, /styles\.css\?v=airport-filter-20261106/);
 });
@@ -291,4 +291,33 @@ test("Haneda airport offers appear under Tokyo city instead of vanishing from ma
   assert.equal(helper.getDealCityCode({arrivalCode:"HND"}),"NRT");
   assert.equal(helper.getDealCityCode({arrivalCode:"KIX"}),"KIX");
   assert.match(appSource,/getVisibleDeals\(\)\.filter\(\(deal\) => getDealCityCode\(deal\) === city\.code\)/);
+});
+
+
+test("compact flight cards show four dates and allow expanding every remaining booking link", () => {
+  const sample = {
+    destination:"도쿄",departureCode:"GMP",arrivalAirportCode:"HND",
+    price:250000,outbound:{},inbound:{},
+    schedules:Array.from({length:11},(_,i)=>({
+      tripDays:4,departureDate:"2026-11-"+String(i+12).padStart(2,"0"),
+      returnDate:"2026-11-"+String(i+15).padStart(2,"0"),
+      url:"https://www.google.com/travel/flights?q="+i,
+    })),
+  };
+  const sandbox = {
+    sample,
+    escapeHtml:(value)=>String(value),
+    formatDealDate:(value)=>value,
+    formatPrice:(value)=>"KRW "+value,
+    renderFlightLeg:()=>"<div>직항 노선</div>",
+  };
+  const html=vm.runInNewContext(extract("renderLiveFlightCard","getGroupAirlines")+"\nrenderLiveFlightCard(sample)",sandbox);
+  assert.match(html,/<details class="live-flight-schedules-more">/);
+  assert.match(html,/<summary>7개 일정 더보기<\/summary>/);
+  const front=html.split("<details")[0];
+  assert.equal((front.match(/class="live-flight-schedule"/g)||[]).length,4);
+  assert.equal((html.match(/class="live-flight-schedule"/g)||[]).length,11,"All original booking links must remain available");
+  assert.match(html,/김포 \(GMP\)/);
+  const css=fs.readFileSync(new URL("../dist/live-flights.css",import.meta.url),"utf8");
+  assert.match(css,/\.live-flight-schedules-more/);
 });
