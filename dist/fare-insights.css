@@ -91,3 +91,28 @@
   .fare-score-copy p {font-size:10px;}
   .fare-selection-action {width:100%;text-align:center;}
 }
+
+/* Unobserved departure dates are searchable, never labelled with a fake fare. */
+.fare-calendar-day.is-searchable {
+  cursor: pointer; font-family: inherit; appearance: none;
+  background: #f9faf6; border-style: dashed; border-color: #d8e1d6;
+}
+.fare-calendar-day.is-searchable > span { color: #617461; }
+.fare-calendar-day.is-searchable small { font-size: 10px; color: #7e9b79; font-weight: 800; }
+.fare-calendar-day.is-searchable:hover,
+.fare-calendar-day.is-searchable:focus-visible,
+.fare-calendar-day.is-searchable.selected {
+  background: #eef5e6; border-style: solid; border-color: #9fbd8b;
+  outline: 2px solid rgba(123, 162, 108, .15); outline-offset: 1px;
+}
+.fare-calendar-search-links { display: flex; flex-wrap: wrap; width: 100%; gap: 6px; padding-top: 7px; border-top: 1px solid #dfebd9; }
+.fare-calendar-search-link {
+  display: inline-flex; min-height: 32px; align-items: center; padding: 7px 10px;
+  border: 1px solid #bed7ae; border-radius: 7px;
+  background: #e6f3d9; color: #44663d; font-size: 11px; font-weight: 800; text-decoration: none;
+}
+.fare-calendar-search-link:hover,.fare-calendar-search-link:focus-visible { background: var(--lime); color: var(--navy); outline-offset: 2px; }
+@media (max-width:600px) {
+  .fare-calendar-day.is-searchable small { font-size: 9px; }
+  .fare-calendar-search-link { font-size: 10px; }
+}
