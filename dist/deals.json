@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-13T22:45:00.235Z",
+  "fetchedAt": "2026-11-14T21:18:00.308Z",
   "sources": [
     {
       "id": "ttang",
@@ -40,9 +40,9 @@
     },
     {
       "id": "hanatour",
-      "status": "ok",
-      "fetchedCount": 1,
-      "publishedCount": 1,
+      "status": "empty",
+      "fetchedCount": 0,
+      "publishedCount": 0,
       "reason": ""
     },
     {
@@ -305,26 +305,6 @@
       "sourceUrl": "https://mm.ttang.com/ttangair/search/promotion/ttangIndex.do"
     },
     {
-      "sourceId": "hanatour",
-      "sourceName": "하나투어",
-      "departure": "인천 국제공항",
-      "departureCode": "ICN",
-      "arrival": "오사카",
-      "arrivalCode": "KIX",
-      "airline": "트리니티항공(구)티웨이항공",
-      "airlineCode": "TW",
-      "nonstop": true,
-      "fromDate": "2026.11.30",
-      "toDate": "2026.12.03",
-      "tripType": "왕복",
-      "price": 285700,
-      "minimumPassengers": 1,
-      "masterId": "RTF^3163536^TW0303ICNKIX-H5^TW0303ICNKIX-18^20261130^T^KRW^6556461^5417154^^1^0^0",
-      "gubun": "HANATOUR",
-      "reservationUrl": "https://www.hanatour.com/trp/air/CHPC0AIR0222M201?fareId=RTF%5E3163536%5ETW0303ICNKIX-H5%5ETW0303ICNKIX-18%5E20261130%5ET%5EKRW%5E6556461%5E5417154%5E%5E1%5E0%5E0&depPlcNm=%EC%9D%B8%EC%B2%9C+%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD&arrPlcNm=%EA%B0%84%EC%82%AC%EC%9D%B4+%EA%B5%AD%EC%A0%9C%EA%B3%B5%ED%95%AD&itnrTypeCd=RT&adtCnt=1&chdCnt=0&infCnt=0&cabinType=Y&cardPromId=&eventCd=",
-      "sourceUrl": "https://www.hanatour.com/trp/air/CHPC0AIR0233M200"
-    },
-    {
       "sourceId": "ttang",
       "sourceName": "땡처리닷컴",
       "collection": "today-open",
@@ -337,7 +317,7 @@
       "airlineCode": "RS",
       "nonstop": true,
       "fromDate": "2026.12.01",
-      "toDate": "2027.02.14",
+      "toDate": "2027.02.15",
       "durationDays": 4,
       "tripType": "왕복 · 출발 가능 기간",
       "price": 294500,
