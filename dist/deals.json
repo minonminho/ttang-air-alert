@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-14T21:18:00.308Z",
+  "fetchedAt": "2026-11-15T22:05:32.950Z",
   "sources": [
     {
       "id": "ttang",
@@ -317,7 +317,7 @@
       "airlineCode": "RS",
       "nonstop": true,
       "fromDate": "2026.12.01",
-      "toDate": "2027.02.15",
+      "toDate": "2027.02.16",
       "durationDays": 4,
       "tripType": "왕복 · 출발 가능 기간",
       "price": 294500,
