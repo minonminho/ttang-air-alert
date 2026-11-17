@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-15T22:02:54.668Z",
+  "updatedAt": "2026-11-17T01:07:48.318Z",
   "retentionDays": 120,
   "source": "Google Flights verified nonstop round-trip daily route-duration minimum",
   "interpretation": "Each price is a daily observed minimum across different flight departure dates for the same origin, destination airport and trip length; not a price change for an identical ticket.",
@@ -10913,6 +10913,1036 @@
       "tripDays": 6,
       "minPrice": 234500,
       "checkedAt": "2026-11-15T22:02:54.441Z",
+      "sampleCount": 23
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 3,
+      "minPrice": 652632,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 5
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 4,
+      "minPrice": 361237,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 10
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 5,
+      "minPrice": 648700,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 5
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 6,
+      "minPrice": 520076,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 5
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "HND",
+      "tripDays": 3,
+      "minPrice": 540000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 128
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "HND",
+      "tripDays": 4,
+      "minPrice": 540000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 144
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "HND",
+      "tripDays": 5,
+      "minPrice": 540000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 154
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "GMP",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "HND",
+      "tripDays": 6,
+      "minPrice": 540000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 158
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "AOJ",
+      "arrivalAirportCode": "AOJ",
+      "tripDays": 3,
+      "minPrice": 476200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 12
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "AOJ",
+      "arrivalAirportCode": "AOJ",
+      "tripDays": 4,
+      "minPrice": 476200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 23
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "AOJ",
+      "arrivalAirportCode": "AOJ",
+      "tripDays": 5,
+      "minPrice": 516200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 3
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "AOJ",
+      "arrivalAirportCode": "AOJ",
+      "tripDays": 6,
+      "minPrice": 351200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 24
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "CTS",
+      "arrivalAirportCode": "CTS",
+      "tripDays": 3,
+      "minPrice": 572649,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 50
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "CTS",
+      "arrivalAirportCode": "CTS",
+      "tripDays": 4,
+      "minPrice": 514500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 49
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "CTS",
+      "arrivalAirportCode": "CTS",
+      "tripDays": 5,
+      "minPrice": 479500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 46
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "CTS",
+      "arrivalAirportCode": "CTS",
+      "tripDays": 6,
+      "minPrice": 459500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 44
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FSZ",
+      "arrivalAirportCode": "FSZ",
+      "tripDays": 3,
+      "minPrice": 341600,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 96
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FSZ",
+      "arrivalAirportCode": "FSZ",
+      "tripDays": 4,
+      "minPrice": 341600,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 106
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FSZ",
+      "arrivalAirportCode": "FSZ",
+      "tripDays": 5,
+      "minPrice": 318290,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 120
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FSZ",
+      "arrivalAirportCode": "FSZ",
+      "tripDays": 6,
+      "minPrice": 297600,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 126
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FUK",
+      "arrivalAirportCode": "FUK",
+      "tripDays": 3,
+      "minPrice": 364548,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 42
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FUK",
+      "arrivalAirportCode": "FUK",
+      "tripDays": 4,
+      "minPrice": 356800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 42
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FUK",
+      "arrivalAirportCode": "FUK",
+      "tripDays": 5,
+      "minPrice": 286800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 42
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "FUK",
+      "arrivalAirportCode": "FUK",
+      "tripDays": 6,
+      "minPrice": 286800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 42
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HIJ",
+      "arrivalAirportCode": "HIJ",
+      "tripDays": 3,
+      "minPrice": 266900,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 84
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HIJ",
+      "arrivalAirportCode": "HIJ",
+      "tripDays": 4,
+      "minPrice": 236900,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 90
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HIJ",
+      "arrivalAirportCode": "HIJ",
+      "tripDays": 5,
+      "minPrice": 236900,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 113
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HIJ",
+      "arrivalAirportCode": "HIJ",
+      "tripDays": 6,
+      "minPrice": 226900,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 121
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HKD",
+      "arrivalAirportCode": "HKD",
+      "tripDays": 3,
+      "minPrice": 447468,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 16
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HKD",
+      "arrivalAirportCode": "HKD",
+      "tripDays": 4,
+      "minPrice": 435495,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 19
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HKD",
+      "arrivalAirportCode": "HKD",
+      "tripDays": 5,
+      "minPrice": 392000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 18
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HKD",
+      "arrivalAirportCode": "HKD",
+      "tripDays": 6,
+      "minPrice": 391926,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 21
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HSG",
+      "arrivalAirportCode": "HSG",
+      "tripDays": 3,
+      "minPrice": 366000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 17
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HSG",
+      "arrivalAirportCode": "HSG",
+      "tripDays": 4,
+      "minPrice": 346000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 14
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HSG",
+      "arrivalAirportCode": "HSG",
+      "tripDays": 5,
+      "minPrice": 291000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 16
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "HSG",
+      "arrivalAirportCode": "HSG",
+      "tripDays": 6,
+      "minPrice": 241000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 16
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "ISG",
+      "arrivalAirportCode": "ISG",
+      "tripDays": 3,
+      "minPrice": 373800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 22
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "ISG",
+      "arrivalAirportCode": "ISG",
+      "tripDays": 4,
+      "minPrice": 343800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 26
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "ISG",
+      "arrivalAirportCode": "ISG",
+      "tripDays": 5,
+      "minPrice": 353800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 25
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "ISG",
+      "arrivalAirportCode": "ISG",
+      "tripDays": 6,
+      "minPrice": 333980,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 30
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIJ",
+      "arrivalAirportCode": "KIJ",
+      "tripDays": 3,
+      "minPrice": 480700,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 25
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIJ",
+      "arrivalAirportCode": "KIJ",
+      "tripDays": 4,
+      "minPrice": 468200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 28
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIJ",
+      "arrivalAirportCode": "KIJ",
+      "tripDays": 5,
+      "minPrice": 368200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 31
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIJ",
+      "arrivalAirportCode": "KIJ",
+      "tripDays": 6,
+      "minPrice": 323200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 32
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 3,
+      "minPrice": 314587,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 112
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 4,
+      "minPrice": 295651,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 122
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 5,
+      "minPrice": 284191,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 140
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KIX",
+      "arrivalAirportCode": "KIX",
+      "tripDays": 6,
+      "minPrice": 258700,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 162
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMI",
+      "arrivalAirportCode": "KMI",
+      "tripDays": 3,
+      "minPrice": 446000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 14
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMI",
+      "arrivalAirportCode": "KMI",
+      "tripDays": 4,
+      "minPrice": 351000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 16
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMI",
+      "arrivalAirportCode": "KMI",
+      "tripDays": 5,
+      "minPrice": 351000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 20
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMI",
+      "arrivalAirportCode": "KMI",
+      "tripDays": 6,
+      "minPrice": 351000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 21
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMJ",
+      "arrivalAirportCode": "KMJ",
+      "tripDays": 3,
+      "minPrice": 392000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 27
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMJ",
+      "arrivalAirportCode": "KMJ",
+      "tripDays": 4,
+      "minPrice": 352000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 35
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMJ",
+      "arrivalAirportCode": "KMJ",
+      "tripDays": 5,
+      "minPrice": 342000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 31
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMJ",
+      "arrivalAirportCode": "KMJ",
+      "tripDays": 6,
+      "minPrice": 382000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 30
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMQ",
+      "arrivalAirportCode": "KMQ",
+      "tripDays": 3,
+      "minPrice": 393200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 23
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMQ",
+      "arrivalAirportCode": "KMQ",
+      "tripDays": 4,
+      "minPrice": 393200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 28
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMQ",
+      "arrivalAirportCode": "KMQ",
+      "tripDays": 5,
+      "minPrice": 393200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 30
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KMQ",
+      "arrivalAirportCode": "KMQ",
+      "tripDays": 6,
+      "minPrice": 373200,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 34
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KOJ",
+      "arrivalAirportCode": "KOJ",
+      "tripDays": 3,
+      "minPrice": 399500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 24
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KOJ",
+      "arrivalAirportCode": "KOJ",
+      "tripDays": 4,
+      "minPrice": 324500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 23
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KOJ",
+      "arrivalAirportCode": "KOJ",
+      "tripDays": 5,
+      "minPrice": 324500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 15
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "KOJ",
+      "arrivalAirportCode": "KOJ",
+      "tripDays": 6,
+      "minPrice": 304500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 26
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "MYJ",
+      "arrivalAirportCode": "MYJ",
+      "tripDays": 3,
+      "minPrice": 319500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 72
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "MYJ",
+      "arrivalAirportCode": "MYJ",
+      "tripDays": 4,
+      "minPrice": 309500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 86
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "MYJ",
+      "arrivalAirportCode": "MYJ",
+      "tripDays": 5,
+      "minPrice": 299500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 94
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "MYJ",
+      "arrivalAirportCode": "MYJ",
+      "tripDays": 6,
+      "minPrice": 295500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 118
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGO",
+      "arrivalAirportCode": "NGO",
+      "tripDays": 3,
+      "minPrice": 345100,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 102
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGO",
+      "arrivalAirportCode": "NGO",
+      "tripDays": 4,
+      "minPrice": 341100,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 97
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGO",
+      "arrivalAirportCode": "NGO",
+      "tripDays": 5,
+      "minPrice": 316100,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 88
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGO",
+      "arrivalAirportCode": "NGO",
+      "tripDays": 6,
+      "minPrice": 308100,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 100
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGS",
+      "arrivalAirportCode": "NGS",
+      "tripDays": 3,
+      "minPrice": 312400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 9
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGS",
+      "arrivalAirportCode": "NGS",
+      "tripDays": 4,
+      "minPrice": 312400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 9
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGS",
+      "arrivalAirportCode": "NGS",
+      "tripDays": 5,
+      "minPrice": 312400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 3
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NGS",
+      "arrivalAirportCode": "NGS",
+      "tripDays": 6,
+      "minPrice": 312400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 11
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "NRT",
+      "tripDays": 3,
+      "minPrice": 327227,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 120
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "NRT",
+      "tripDays": 4,
+      "minPrice": 335103,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 117
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "NRT",
+      "tripDays": 5,
+      "minPrice": 314137,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 153
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "NRT",
+      "arrivalAirportCode": "NRT",
+      "tripDays": 6,
+      "minPrice": 302627,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 155
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OIT",
+      "arrivalAirportCode": "OIT",
+      "tripDays": 3,
+      "minPrice": 319500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 43
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OIT",
+      "arrivalAirportCode": "OIT",
+      "tripDays": 4,
+      "minPrice": 274500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 38
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OIT",
+      "arrivalAirportCode": "OIT",
+      "tripDays": 5,
+      "minPrice": 305500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 59
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OIT",
+      "arrivalAirportCode": "OIT",
+      "tripDays": 6,
+      "minPrice": 274500,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 45
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKA",
+      "arrivalAirportCode": "OKA",
+      "tripDays": 3,
+      "minPrice": 433448,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 109
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKA",
+      "arrivalAirportCode": "OKA",
+      "tripDays": 4,
+      "minPrice": 399218,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 105
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKA",
+      "arrivalAirportCode": "OKA",
+      "tripDays": 5,
+      "minPrice": 365693,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 113
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKA",
+      "arrivalAirportCode": "OKA",
+      "tripDays": 6,
+      "minPrice": 357312,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 105
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKJ",
+      "arrivalAirportCode": "OKJ",
+      "tripDays": 4,
+      "minPrice": 355400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 11
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKJ",
+      "arrivalAirportCode": "OKJ",
+      "tripDays": 5,
+      "minPrice": 355400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 11
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "OKJ",
+      "arrivalAirportCode": "OKJ",
+      "tripDays": 6,
+      "minPrice": 330400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 13
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "SDJ",
+      "arrivalAirportCode": "SDJ",
+      "tripDays": 3,
+      "minPrice": 324800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 41
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "SDJ",
+      "arrivalAirportCode": "SDJ",
+      "tripDays": 4,
+      "minPrice": 421600,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 30
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "SDJ",
+      "arrivalAirportCode": "SDJ",
+      "tripDays": 5,
+      "minPrice": 360100,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 55
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "SDJ",
+      "arrivalAirportCode": "SDJ",
+      "tripDays": 6,
+      "minPrice": 280800,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 42
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "TAK",
+      "arrivalAirportCode": "TAK",
+      "tripDays": 3,
+      "minPrice": 279000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 18
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "TAK",
+      "arrivalAirportCode": "TAK",
+      "tripDays": 4,
+      "minPrice": 254000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 16
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "TAK",
+      "arrivalAirportCode": "TAK",
+      "tripDays": 5,
+      "minPrice": 224000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 16
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "TAK",
+      "arrivalAirportCode": "TAK",
+      "tripDays": 6,
+      "minPrice": 254000,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 14
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "YGJ",
+      "arrivalAirportCode": "YGJ",
+      "tripDays": 3,
+      "minPrice": 299300,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 19
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "YGJ",
+      "arrivalAirportCode": "YGJ",
+      "tripDays": 4,
+      "minPrice": 254400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 21
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "YGJ",
+      "arrivalAirportCode": "YGJ",
+      "tripDays": 5,
+      "minPrice": 254300,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
+      "sampleCount": 21
+    },
+    {
+      "day": "2026-11-17",
+      "departureCode": "ICN",
+      "cityCode": "YGJ",
+      "arrivalAirportCode": "YGJ",
+      "tripDays": 6,
+      "minPrice": 234400,
+      "checkedAt": "2026-11-17T01:07:48.050Z",
       "sampleCount": 23
     }
   ]
